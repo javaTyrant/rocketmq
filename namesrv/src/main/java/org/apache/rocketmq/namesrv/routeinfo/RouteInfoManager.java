@@ -45,7 +45,7 @@ import org.apache.rocketmq.common.protocol.route.QueueData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 import org.apache.rocketmq.common.sysflag.TopicSysFlag;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
-
+//
 public class RouteInfoManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
     private final static long BROKER_CHANNEL_EXPIRED_TIME = 1000 * 60 * 2;
@@ -440,14 +440,22 @@ public class RouteInfoManager {
     }
 
     public void scanNotActiveBroker() {
+        //s
         Iterator<Entry<String, BrokerLiveInfo>> it = this.brokerLiveTable.entrySet().iterator();
+        //
         while (it.hasNext()) {
+            //
             Entry<String, BrokerLiveInfo> next = it.next();
+            //
             long last = next.getValue().getLastUpdateTimestamp();
+            //
             if ((last + BROKER_CHANNEL_EXPIRED_TIME) < System.currentTimeMillis()) {
+                //
                 RemotingUtil.closeChannel(next.getValue().getChannel());
+                //
                 it.remove();
                 log.warn("The broker channel expired, {} {}ms", next.getKey(), BROKER_CHANNEL_EXPIRED_TIME);
+                //
                 this.onChannelDestroy(next.getKey(), next.getValue().getChannel());
             }
         }
@@ -766,13 +774,20 @@ public class RouteInfoManager {
 }
 
 class BrokerLiveInfo {
+    //最后一次更新的时间戳
     private long lastUpdateTimestamp;
+    //版本号
     private DataVersion dataVersion;
+    //Channel(Netty)
     private Channel channel;
+    //
     private String haServerAddr;
 
-    public BrokerLiveInfo(long lastUpdateTimestamp, DataVersion dataVersion, Channel channel,
-        String haServerAddr) {
+    public BrokerLiveInfo(long lastUpdateTimestamp,
+                          DataVersion dataVersion,
+                          Channel channel,
+                          String haServerAddr) {
+        //
         this.lastUpdateTimestamp = lastUpdateTimestamp;
         this.dataVersion = dataVersion;
         this.channel = channel;

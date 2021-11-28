@@ -41,23 +41,26 @@ import org.apache.rocketmq.srvutil.FileWatchService;
 
 public class NamesrvController {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
-
+    //
     private final NamesrvConfig namesrvConfig;
-
+    //
     private final NettyServerConfig nettyServerConfig;
-
+    //
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl(
         "NSScheduledThread"));
+    //
     private final KVConfigManager kvConfigManager;
+    //
     private final RouteInfoManager routeInfoManager;
-
+    //
     private RemotingServer remotingServer;
-
+    //
     private BrokerHousekeepingService brokerHousekeepingService;
-
+    //
     private ExecutorService remotingExecutor;
-
+    //
     private Configuration configuration;
+    //
     private FileWatchService fileWatchService;
 
     public NamesrvController(NamesrvConfig namesrvConfig, NettyServerConfig nettyServerConfig) {
@@ -74,16 +77,16 @@ public class NamesrvController {
     }
 
     public boolean initialize() {
-
+        //加载什么呢?
         this.kvConfigManager.load();
-
+        //远程server.
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
-
+        //
         this.remotingExecutor =
             Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new ThreadFactoryImpl("RemotingExecutorThread_"));
-
+        //
         this.registerProcessor();
-
+        //用的jdk的.扫描不活跃的Broker.
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -91,7 +94,7 @@ public class NamesrvController {
                 NamesrvController.this.routeInfoManager.scanNotActiveBroker();
             }
         }, 5, 10, TimeUnit.SECONDS);
-
+        //
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override

@@ -35,10 +35,8 @@ import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.TopicConfig;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.common.constant.PermName;
-import org.apache.rocketmq.common.protocol.RequestCode;
-import org.apache.rocketmq.logging.InternalLogger;
-import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.common.namesrv.RegisterBrokerResult;
+import org.apache.rocketmq.common.protocol.RequestCode;
 import org.apache.rocketmq.common.protocol.body.ClusterInfo;
 import org.apache.rocketmq.common.protocol.body.TopicConfigSerializeWrapper;
 import org.apache.rocketmq.common.protocol.body.TopicList;
@@ -46,7 +44,11 @@ import org.apache.rocketmq.common.protocol.route.BrokerData;
 import org.apache.rocketmq.common.protocol.route.QueueData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 import org.apache.rocketmq.common.sysflag.TopicSysFlag;
+import org.apache.rocketmq.logging.InternalLogger;
+import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
+
+//路由信息管理.
 
 //路由信息管理类.
 public class RouteInfoManager {
@@ -54,6 +56,8 @@ public class RouteInfoManager {
     //
     private final static long BROKER_CHANNEL_EXPIRED_TIME = 1000 * 60 * 2;
     //
+    //读写锁:读多写少.NameServer在处理心跳包的时候，存在多个Broker同时操作一张Broker表，为了防止并发修改Broker表导致不安全，
+    //路由注册操作引入了ReadWriteLock读写锁，这个设计亮点允许多个消息生产者并发读，保证了消息发送时的高并发，但是同一时刻NameServer只能处理一个Broker心跳包，多个心跳包串行处理。
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     //
     private final HashMap<String/* topic */, List<QueueData>> topicQueueTable;
@@ -76,7 +80,9 @@ public class RouteInfoManager {
 
     public byte[] getAllClusterInfo() {
         ClusterInfo clusterInfoSerializeWrapper = new ClusterInfo();
+        //
         clusterInfoSerializeWrapper.setBrokerAddrTable(this.brokerAddrTable);
+        //
         clusterInfoSerializeWrapper.setClusterAddrTable(this.clusterAddrTable);
         return clusterInfoSerializeWrapper.encode();
     }
@@ -126,7 +132,7 @@ public class RouteInfoManager {
 
                 Set<String> brokerNames = this.clusterAddrTable.get(clusterName);
                 if (null == brokerNames) {
-                    brokerNames = new HashSet<String>();
+                    brokerNames = new HashSet<>();
                     this.clusterAddrTable.put(clusterName, brokerNames);
                 }
                 brokerNames.add(brokerName);
@@ -450,7 +456,7 @@ public class RouteInfoManager {
     }
 
     public void scanNotActiveBroker() {
-        //s
+        //
         Iterator<Entry<String, BrokerLiveInfo>> it = this.brokerLiveTable.entrySet().iterator();
         //
         while (it.hasNext()) {
@@ -458,7 +464,7 @@ public class RouteInfoManager {
             Entry<String, BrokerLiveInfo> next = it.next();
             //
             long last = next.getValue().getLastUpdateTimestamp();
-            //
+            //最后一次更新的时间 + 过期时间 < 现在时间(120没有心跳)
             if ((last + BROKER_CHANNEL_EXPIRED_TIME) < System.currentTimeMillis()) {
                 //
                 RemotingUtil.closeChannel(next.getValue().getChannel());
@@ -783,6 +789,7 @@ public class RouteInfoManager {
     }
 }
 
+//Broker存货信息.
 class BrokerLiveInfo {
     //最后一次更新的时间戳
     private long lastUpdateTimestamp;

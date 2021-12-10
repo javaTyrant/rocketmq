@@ -44,7 +44,7 @@ public class Slf4jLoggerFactory extends InternalLoggerFactory {
 
     public static class Slf4jLogger implements InternalLogger {
 
-        private Logger logger = null;
+        private Logger logger;
 
         public Slf4jLogger(String name) {
             logger = LoggerFactory.getLogger(name);

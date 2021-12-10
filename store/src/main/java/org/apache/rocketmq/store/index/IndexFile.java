@@ -16,35 +16,59 @@
  */
 package org.apache.rocketmq.store.index;
 
+import org.apache.rocketmq.common.constant.LoggerName;
+import org.apache.rocketmq.logging.InternalLogger;
+import org.apache.rocketmq.logging.InternalLoggerFactory;
+import org.apache.rocketmq.store.MappedFile;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.util.List;
-import org.apache.rocketmq.common.constant.LoggerName;
-import org.apache.rocketmq.logging.InternalLogger;
-import org.apache.rocketmq.logging.InternalLoggerFactory;
-import org.apache.rocketmq.store.MappedFile;
+//索引文件.作用:IndexFile的主要作用是作为CommitLog的索引文件, 可以快速根据给定的key查找到对应消息在CommitLog的物理位移.
+//这个类的设计思想.
+//IndexFile主要由一下三个部分组成: IndexHeader + HashSlot + IndexItem
+//HashSlot:默认包含500w个hash槽, 每个hash槽中存储的是最近一个hash条目的位置.
+//IndexItem:默认最多包含2000w个indexItem. 其组成如下所示:
 
+//Hash冲突解决方案:
 public class IndexFile {
+    //
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
-    private static int hashSlotSize = 4;
-    private static int indexSize = 20;
-    private static int invalidIndex = 0;
+    //
+    private static final int hashSlotSize = 4;
+    //
+    private static final int indexSize = 20;
+    //
+    private static final int invalidIndex = 0;
+    //
     private final int hashSlotNum;
+    //
     private final int indexNum;
+    //
     private final MappedFile mappedFile;
-    private final FileChannel fileChannel;
+    //
     private final MappedByteBuffer mappedByteBuffer;
+    //
     private final IndexHeader indexHeader;
 
-    public IndexFile(final String fileName, final int hashSlotNum, final int indexNum,
-        final long endPhyOffset, final long endTimestamp) throws IOException {
+    //
+    public IndexFile(final String fileName,
+                     final int hashSlotNum,
+                     final int indexNum,
+                     final long endPhyOffset,
+                     final long endTimestamp) throws IOException {
+        //
         int fileTotalSize =
-            IndexHeader.INDEX_HEADER_SIZE + (hashSlotNum * hashSlotSize) + (indexNum * indexSize);
+                IndexHeader.INDEX_HEADER_SIZE + (hashSlotNum * hashSlotSize) + (indexNum * indexSize);
+        //
         this.mappedFile = new MappedFile(fileName, fileTotalSize);
-        this.fileChannel = this.mappedFile.getFileChannel();
+        //并没有用到.
+        FileChannel fileChannel = this.mappedFile.getFileChannel();
+        //
+        System.out.println(fileChannel);
         this.mappedByteBuffer = this.mappedFile.getMappedByteBuffer();
         this.hashSlotNum = hashSlotNum;
         this.indexNum = indexNum;
@@ -89,10 +113,13 @@ public class IndexFile {
         return this.mappedFile.destroy(intervalForcibly);
     }
 
+    //key offerSet storeTimestamp.
     public boolean putKey(final String key, final long phyOffset, final long storeTimestamp) {
+        //
         if (this.indexHeader.getIndexCount() < this.indexNum) {
             int keyHash = indexKeyHashMethod(key);
             int slotPos = keyHash % this.hashSlotNum;
+            //头 +
             int absSlotPos = IndexHeader.INDEX_HEADER_SIZE + slotPos * hashSlotSize;
 
             FileLock fileLock = null;
@@ -119,8 +146,8 @@ public class IndexFile {
                 }
 
                 int absIndexPos =
-                    IndexHeader.INDEX_HEADER_SIZE + this.hashSlotNum * hashSlotSize
-                        + this.indexHeader.getIndexCount() * indexSize;
+                        IndexHeader.INDEX_HEADER_SIZE + this.hashSlotNum * hashSlotSize
+                                + this.indexHeader.getIndexCount() * indexSize;
 
                 this.mappedByteBuffer.putInt(absIndexPos, keyHash);
                 this.mappedByteBuffer.putLong(absIndexPos + 4, phyOffset);
@@ -155,16 +182,20 @@ public class IndexFile {
             }
         } else {
             log.warn("Over index file capacity: index count = " + this.indexHeader.getIndexCount()
-                + "; index max num = " + this.indexNum);
+                    + "; index max num = " + this.indexNum);
         }
 
         return false;
     }
 
+    //
     public int indexKeyHashMethod(final String key) {
         int keyHash = key.hashCode();
+        //取绝对值
         int keyHashPositive = Math.abs(keyHash);
+        //如果还是溢出
         if (keyHashPositive < 0)
+            //取0
             keyHashPositive = 0;
         return keyHashPositive;
     }
@@ -189,78 +220,85 @@ public class IndexFile {
     }
 
     public void selectPhyOffset(final List<Long> phyOffsets, final String key, final int maxNum,
-        final long begin, final long end, boolean lock) {
-        if (this.mappedFile.hold()) {
-            int keyHash = indexKeyHashMethod(key);
-            int slotPos = keyHash % this.hashSlotNum;
-            int absSlotPos = IndexHeader.INDEX_HEADER_SIZE + slotPos * hashSlotSize;
+                                final long begin, final long end, boolean lock) {
+        //
+        if (!this.mappedFile.hold()) {
+            return;
+        }
+        //
+        int keyHash = indexKeyHashMethod(key);
+        //
+        int slotPos = keyHash % this.hashSlotNum;
+        //
+        int absSlotPos = IndexHeader.INDEX_HEADER_SIZE + slotPos * hashSlotSize;
 
-            FileLock fileLock = null;
-            try {
-                if (lock) {
-                    // fileLock = this.fileChannel.lock(absSlotPos,
-                    // hashSlotSize, true);
-                }
+        FileLock fileLock = null;
+        try {
+            //if (lock) {
+            // fileLock = this.fileChannel.lock(absSlotPos,
+            // hashSlotSize, true);
+            //}
 
-                int slotValue = this.mappedByteBuffer.getInt(absSlotPos);
-                // if (fileLock != null) {
-                // fileLock.release();
-                // fileLock = null;
-                // }
-
-                if (slotValue <= invalidIndex || slotValue > this.indexHeader.getIndexCount()
+            int slotValue = this.mappedByteBuffer.getInt(absSlotPos);
+            // if (fileLock != null) {
+            // fileLock.release();
+            // fileLock = null;
+            // }
+            //
+            if (slotValue <= invalidIndex || slotValue > this.indexHeader.getIndexCount()
                     || this.indexHeader.getIndexCount() <= 1) {
-                } else {
-                    for (int nextIndexToRead = slotValue; ; ) {
-                        if (phyOffsets.size() >= maxNum) {
-                            break;
-                        }
+                System.out.println(".....");
+            } else {
+                for (int nextIndexToRead = slotValue; ; ) {
+                    if (phyOffsets.size() >= maxNum) {
+                        break;
+                    }
 
-                        int absIndexPos =
+                    int absIndexPos =
                             IndexHeader.INDEX_HEADER_SIZE + this.hashSlotNum * hashSlotSize
-                                + nextIndexToRead * indexSize;
+                                    + nextIndexToRead * indexSize;
 
-                        int keyHashRead = this.mappedByteBuffer.getInt(absIndexPos);
-                        long phyOffsetRead = this.mappedByteBuffer.getLong(absIndexPos + 4);
+                    int keyHashRead = this.mappedByteBuffer.getInt(absIndexPos);
+                    long phyOffsetRead = this.mappedByteBuffer.getLong(absIndexPos + 4);
 
-                        long timeDiff = (long) this.mappedByteBuffer.getInt(absIndexPos + 4 + 8);
-                        int prevIndexRead = this.mappedByteBuffer.getInt(absIndexPos + 4 + 8 + 4);
+                    long timeDiff = this.mappedByteBuffer.getInt(absIndexPos + 4 + 8);
+                    int prevIndexRead = this.mappedByteBuffer.getInt(absIndexPos + 4 + 8 + 4);
 
-                        if (timeDiff < 0) {
-                            break;
-                        }
+                    if (timeDiff < 0) {
+                        break;
+                    }
 
-                        timeDiff *= 1000L;
+                    timeDiff *= 1000L;
 
-                        long timeRead = this.indexHeader.getBeginTimestamp() + timeDiff;
-                        boolean timeMatched = (timeRead >= begin) && (timeRead <= end);
+                    long timeRead = this.indexHeader.getBeginTimestamp() + timeDiff;
+                    boolean timeMatched = (timeRead >= begin) && (timeRead <= end);
 
-                        if (keyHash == keyHashRead && timeMatched) {
-                            phyOffsets.add(phyOffsetRead);
-                        }
+                    if (keyHash == keyHashRead && timeMatched) {
+                        phyOffsets.add(phyOffsetRead);
+                    }
 
-                        if (prevIndexRead <= invalidIndex
+                    if (prevIndexRead <= invalidIndex
                             || prevIndexRead > this.indexHeader.getIndexCount()
                             || prevIndexRead == nextIndexToRead || timeRead < begin) {
-                            break;
-                        }
-
-                        nextIndexToRead = prevIndexRead;
+                        break;
                     }
-                }
-            } catch (Exception e) {
-                log.error("selectPhyOffset exception ", e);
-            } finally {
-                if (fileLock != null) {
-                    try {
-                        fileLock.release();
-                    } catch (IOException e) {
-                        log.error("Failed to release the lock", e);
-                    }
-                }
 
-                this.mappedFile.release();
+                    nextIndexToRead = prevIndexRead;
+                }
             }
+        } catch (Exception e) {
+            log.error("selectPhyOffset exception ", e);
+        } finally {
+            if (fileLock != null) {
+                try {
+                    fileLock.release();
+                } catch (IOException e) {
+                    log.error("Failed to release the lock", e);
+                }
+            }
+
+            this.mappedFile.release();
         }
     }
+
 }

@@ -16,10 +16,21 @@
  */
 package org.apache.rocketmq.client.producer;
 
-import java.util.List;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageQueue;
 
+import java.util.List;
+
+/**
+ * 消息队列选择器.主要有三种实现.
+ * 本质就是负载均衡的算法.
+ */
 public interface MessageQueueSelector {
+    /**
+     * @param mqs message queue
+     * @param msg msg
+     * @param arg arg
+     * @return queue
+     */
     MessageQueue select(final List<MessageQueue> mqs, final Message msg, final Object arg);
 }

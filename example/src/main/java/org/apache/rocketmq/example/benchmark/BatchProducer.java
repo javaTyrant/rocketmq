@@ -91,73 +91,70 @@ public class BatchProducer {
         final InternalLogger log = ClientLogger.getLog();
         final ExecutorService sendThreadPool = Executors.newFixedThreadPool(threadCount);
         for (int i = 0; i < threadCount; i++) {
-            sendThreadPool.execute(new Runnable() {
-                @Override
-                public void run() {
-                    while (true) {
-                        List<Message> msgs = buildBathMessage(batchSize, topic);
+            sendThreadPool.execute(() -> {
+                while (true) {
+                    List<Message> msgs = buildBathMessage(batchSize, topic);
 
-                        if (CollectionUtils.isEmpty(msgs)) {
-                            return;
+                    if (CollectionUtils.isEmpty(msgs)) {
+                        return;
+                    }
+
+                    try {
+                        long beginTimestamp = System.currentTimeMillis();
+                        long sendSucCount = statsBenchmark.getSendMessageSuccessCount().longValue();
+
+                        setKeys(keyEnable, msgs, String.valueOf(beginTimestamp / 1000));
+                        setTags(tagCount, msgs, sendSucCount);
+                        setProperties(propertySize, msgs);
+                        SendResult sendResult = producer.send(msgs);
+                        if (sendResult.getSendStatus() == SendStatus.SEND_OK) {
+                            statsBenchmark.getSendRequestSuccessCount().increment();
+                            statsBenchmark.getSendMessageSuccessCount().add(msgs.size());
+                        } else {
+                            statsBenchmark.getSendRequestFailedCount().increment();
+                            statsBenchmark.getSendMessageFailedCount().add(msgs.size());
                         }
+                        long currentRT = System.currentTimeMillis() - beginTimestamp;
+                        statsBenchmark.getSendMessageSuccessTimeTotal().add(currentRT);
+                        long prevMaxRT = statsBenchmark.getSendMessageMaxRT().longValue();
+                        while (currentRT > prevMaxRT) {
+                            boolean updated = statsBenchmark.getSendMessageMaxRT().compareAndSet(prevMaxRT, currentRT);
+                            if (updated) {
+                                break;
+                            }
+
+                            prevMaxRT = statsBenchmark.getSendMessageMaxRT().get();
+                        }
+                    } catch (RemotingException e) {
+                        statsBenchmark.getSendRequestFailedCount().increment();
+                        statsBenchmark.getSendMessageFailedCount().add(msgs.size());
+                        log.error("[BENCHMARK_PRODUCER] Send Exception", e);
 
                         try {
-                            long beginTimestamp = System.currentTimeMillis();
-                            long sendSucCount = statsBenchmark.getSendMessageSuccessCount().longValue();
-
-                            setKeys(keyEnable, msgs, String.valueOf(beginTimestamp / 1000));
-                            setTags(tagCount, msgs, sendSucCount);
-                            setProperties(propertySize, msgs);
-                            SendResult sendResult = producer.send(msgs);
-                            if (sendResult.getSendStatus() == SendStatus.SEND_OK) {
-                                statsBenchmark.getSendRequestSuccessCount().increment();
-                                statsBenchmark.getSendMessageSuccessCount().add(msgs.size());
-                            } else {
-                                statsBenchmark.getSendRequestFailedCount().increment();
-                                statsBenchmark.getSendMessageFailedCount().add(msgs.size());
-                            }
-                            long currentRT = System.currentTimeMillis() - beginTimestamp;
-                            statsBenchmark.getSendMessageSuccessTimeTotal().add(currentRT);
-                            long prevMaxRT = statsBenchmark.getSendMessageMaxRT().longValue();
-                            while (currentRT > prevMaxRT) {
-                                boolean updated = statsBenchmark.getSendMessageMaxRT().compareAndSet(prevMaxRT, currentRT);
-                                if (updated) {
-                                    break;
-                                }
-
-                                prevMaxRT = statsBenchmark.getSendMessageMaxRT().get();
-                            }
-                        } catch (RemotingException e) {
-                            statsBenchmark.getSendRequestFailedCount().increment();
-                            statsBenchmark.getSendMessageFailedCount().add(msgs.size());
-                            log.error("[BENCHMARK_PRODUCER] Send Exception", e);
-
-                            try {
-                                Thread.sleep(3000);
-                            } catch (InterruptedException ignored) {
-                            }
-                        } catch (InterruptedException e) {
-                            statsBenchmark.getSendRequestFailedCount().increment();
-                            statsBenchmark.getSendMessageFailedCount().add(msgs.size());
-                            try {
-                                Thread.sleep(3000);
-                            } catch (InterruptedException e1) {
-                            }
-                            statsBenchmark.getSendRequestFailedCount().increment();
-                            statsBenchmark.getSendMessageFailedCount().add(msgs.size());
-                            log.error("[BENCHMARK_PRODUCER] Send Exception", e);
-                        } catch (MQClientException e) {
-                            statsBenchmark.getSendRequestFailedCount().increment();
-                            statsBenchmark.getSendMessageFailedCount().add(msgs.size());
-                            log.error("[BENCHMARK_PRODUCER] Send Exception", e);
-                        } catch (MQBrokerException e) {
-                            statsBenchmark.getSendRequestFailedCount().increment();
-                            statsBenchmark.getSendMessageFailedCount().add(msgs.size());
-                            log.error("[BENCHMARK_PRODUCER] Send Exception", e);
-                            try {
-                                Thread.sleep(3000);
-                            } catch (InterruptedException ignored) {
-                            }
+                            Thread.sleep(3000);
+                        } catch (InterruptedException ignored) {
+                        }
+                    } catch (InterruptedException e) {
+                        statsBenchmark.getSendRequestFailedCount().increment();
+                        statsBenchmark.getSendMessageFailedCount().add(msgs.size());
+                        try {
+                            Thread.sleep(3000);
+                        } catch (InterruptedException e1) {
+                        }
+                        statsBenchmark.getSendRequestFailedCount().increment();
+                        statsBenchmark.getSendMessageFailedCount().add(msgs.size());
+                        log.error("[BENCHMARK_PRODUCER] Send Exception", e);
+                    } catch (MQClientException e) {
+                        statsBenchmark.getSendRequestFailedCount().increment();
+                        statsBenchmark.getSendMessageFailedCount().add(msgs.size());
+                        log.error("[BENCHMARK_PRODUCER] Send Exception", e);
+                    } catch (MQBrokerException e) {
+                        statsBenchmark.getSendRequestFailedCount().increment();
+                        statsBenchmark.getSendMessageFailedCount().add(msgs.size());
+                        log.error("[BENCHMARK_PRODUCER] Send Exception", e);
+                        try {
+                            Thread.sleep(3000);
+                        } catch (InterruptedException ignored) {
                         }
                     }
                 }

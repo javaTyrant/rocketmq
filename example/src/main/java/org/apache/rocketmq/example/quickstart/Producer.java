@@ -32,7 +32,7 @@ public class Producer {
          * Instantiate with a producer group name.
          */
         DefaultMQProducer producer = new DefaultMQProducer("please_rename_unique_group_name");
-
+        producer.setNamesrvAddr("localhost:9876");
         /*
          * Specify name server addresses.
          * <p/>
@@ -63,6 +63,9 @@ public class Producer {
 
                 /*
                  * Call send message to deliver message to one of brokers.
+                 * 发送信息到brokers()
+                 * 主要看一下消息发送的逻辑,以及消费的逻辑.
+                 * DefaultMQProducer
                  */
                 SendResult sendResult = producer.send(msg);
                 /*

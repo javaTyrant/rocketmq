@@ -57,7 +57,7 @@ public abstract class RebalanceImpl {
     protected final ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable = new ConcurrentHashMap<>(64);
     protected final ConcurrentMap<String/* topic */, Set<MessageQueue>> topicSubscribeInfoTable =
             new ConcurrentHashMap<>();
-    //
+    //subscriptionInner不光保存了使用者相关的订阅关系，还保存了以%RETRY%+消费组名为topic的订阅关系，自动订阅了重试topic。
     protected final ConcurrentMap<String /* topic */, SubscriptionData> subscriptionInner =
             new ConcurrentHashMap<>();
     protected String consumerGroup;

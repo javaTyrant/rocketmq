@@ -16,28 +16,31 @@
  */
 package org.apache.rocketmq.client.impl.consumer;
 
+import org.apache.rocketmq.client.impl.factory.MQClientInstance;
+import org.apache.rocketmq.client.log.ClientLogger;
+import org.apache.rocketmq.common.ServiceThread;
+import org.apache.rocketmq.common.utils.ThreadUtils;
+import org.apache.rocketmq.logging.InternalLogger;
+
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import org.apache.rocketmq.client.impl.factory.MQClientInstance;
-import org.apache.rocketmq.client.log.ClientLogger;
-import org.apache.rocketmq.common.ServiceThread;
-import org.apache.rocketmq.logging.InternalLogger;
-import org.apache.rocketmq.common.utils.ThreadUtils;
 
+//从上文可以看到，一个进程内只存在一个MQClientInstance（自己设置InstanceName除外），
+//从MQClientInstance的启动流程可以看出，MQClientInstance使用一个单独的线程PullMessageService来负责消息的拉取。
 public class PullMessageService extends ServiceThread {
     private final InternalLogger log = ClientLogger.getLog();
     private final LinkedBlockingQueue<PullRequest> pullRequestQueue = new LinkedBlockingQueue<PullRequest>();
     private final MQClientInstance mQClientFactory;
     private final ScheduledExecutorService scheduledExecutorService = Executors
-        .newSingleThreadScheduledExecutor(new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable r) {
-                return new Thread(r, "PullMessageServiceScheduledThread");
-            }
-        });
+            .newSingleThreadScheduledExecutor(new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable r) {
+                    return new Thread(r, "PullMessageServiceScheduledThread");
+                }
+            });
 
     public PullMessageService(MQClientInstance mQClientFactory) {
         this.mQClientFactory = mQClientFactory;
@@ -45,12 +48,8 @@ public class PullMessageService extends ServiceThread {
 
     public void executePullRequestLater(final PullRequest pullRequest, final long timeDelay) {
         if (!isStopped()) {
-            this.scheduledExecutorService.schedule(new Runnable() {
-                @Override
-                public void run() {
-                    PullMessageService.this.executePullRequestImmediately(pullRequest);
-                }
-            }, timeDelay, TimeUnit.MILLISECONDS);
+            this.scheduledExecutorService
+                    .schedule(() -> PullMessageService.this.executePullRequestImmediately(pullRequest), timeDelay, TimeUnit.MILLISECONDS);
         } else {
             log.warn("PullMessageServiceScheduledThread has shutdown");
         }
@@ -88,11 +87,13 @@ public class PullMessageService extends ServiceThread {
 
     @Override
     public void run() {
+        //主要任务就是循环不断阻塞的从pullRequestQueue中取出pullRequest。
         log.info(this.getServiceName() + " service started");
 
         while (!this.isStopped()) {
             try {
                 PullRequest pullRequest = this.pullRequestQueue.take();
+                //然后调用pullMessage方法进行处理。
                 this.pullMessage(pullRequest);
             } catch (InterruptedException ignored) {
             } catch (Exception e) {

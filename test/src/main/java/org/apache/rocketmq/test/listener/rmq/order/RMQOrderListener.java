@@ -51,7 +51,7 @@ public class RMQOrderListener extends AbstractListener implements MessageListene
         Collection<Object> msgQueue = null;
         String key = getKey(msg.getQueueId(), msg.getStoreHost().toString());
         if (!msgs.containsKey(key)) {
-            msgQueue = new ArrayList<Object>();
+            msgQueue = new ArrayList<>();
         } else {
             msgQueue = msgs.get(key);
         }

@@ -168,11 +168,12 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class MQClientAPIImpl {
-
+    //
     private final static InternalLogger log = ClientLogger.getLog();
+    //
     private static boolean sendSmartMsg =
             Boolean.parseBoolean(System.getProperty("org.apache.rocketmq.client.sendSmartMsg", "true"));
-
+    //
     static {
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
     }
@@ -181,7 +182,7 @@ public class MQClientAPIImpl {
     private final TopAddressing topAddressing;
     private final ClientRemotingProcessor clientRemotingProcessor;
     private String nameSrvAddr = null;
-    private ClientConfig clientConfig;
+    private final ClientConfig clientConfig;
 
     public MQClientAPIImpl(final NettyClientConfig nettyClientConfig,
                            final ClientRemotingProcessor clientRemotingProcessor,
@@ -1014,14 +1015,16 @@ public class MQClientAPIImpl {
         this.remotingClient.invokeOneway(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), request, timeoutMillis);
     }
 
-    public int sendHearbeat(
-            final String addr,
-            final HeartbeatData heartbeatData,
-            final long timeoutMillis
-    ) throws RemotingException, MQBrokerException, InterruptedException {
+    public int sendHearbeat(final String addr,
+                            final HeartbeatData heartbeatData,
+                            final long timeoutMillis)
+            throws RemotingException, MQBrokerException, InterruptedException {
+        //构造一个请求.
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.HEART_BEAT, null);
+        //
         request.setLanguage(clientConfig.getLanguage());
         request.setBody(heartbeatData.encode());
+        //同步调用.
         RemotingCommand response = this.remotingClient.invokeSync(addr, request, timeoutMillis);
         assert response != null;
         switch (response.getCode()) {
@@ -1363,11 +1366,12 @@ public class MQClientAPIImpl {
 
     public TopicRouteData getTopicRouteInfoFromNameServer(final String topic, final long timeoutMillis,
                                                           boolean allowTopicNotExist) throws MQClientException, InterruptedException, RemotingTimeoutException, RemotingSendRequestException, RemotingConnectException {
+        //
         GetRouteInfoRequestHeader requestHeader = new GetRouteInfoRequestHeader();
         requestHeader.setTopic(topic);
-
+        //
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_ROUTEINFO_BY_TOPIC, requestHeader);
-
+        //
         RemotingCommand response = this.remotingClient.invokeSync(null, request, timeoutMillis);
         assert response != null;
         switch (response.getCode()) {

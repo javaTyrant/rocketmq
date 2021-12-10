@@ -138,12 +138,14 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         this.isRunning();
         return this.mQClientFactory.getMQAdminImpl().fetchPublishMessageQueues(topic);
     }
-
+    //
     public Set<MessageQueue> fetchSubscribeMessageQueues(String topic) throws MQClientException {
         this.isRunning();
         // check if has info in memory, otherwise invoke api.
         Set<MessageQueue> result = this.rebalanceImpl.getTopicSubscribeInfoTable().get(topic);
+        //
         if (null == result) {
+            //
             result = this.mQClientFactory.getMQAdminImpl().fetchSubscribeMessageQueues(topic);
         }
 

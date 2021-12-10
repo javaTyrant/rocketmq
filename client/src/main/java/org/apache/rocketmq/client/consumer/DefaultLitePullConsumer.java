@@ -36,7 +36,9 @@ import org.apache.rocketmq.common.protocol.NamespaceUtil;
 import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.remoting.RPCHook;
-
+//1.支持以订阅方式进行消息消费，支持消费队列自动再平衡。
+//2.支持手动分配队列的方式进行消息消费，此模式不支持队列自动再平衡。
+//3.提供 seek/commit 方法来重置、提交消费位点。
 public class DefaultLitePullConsumer extends ClientConfig implements LitePullConsumer {
 
     private final InternalLogger log = ClientLogger.getLog();

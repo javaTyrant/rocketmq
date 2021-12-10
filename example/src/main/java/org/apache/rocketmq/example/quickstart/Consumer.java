@@ -30,7 +30,12 @@ import java.util.List;
  * This example shows how to subscribe and consume messages using providing {@link DefaultMQPushConsumer}.
  */
 public class Consumer {
-
+    //路由发现是客户端的行为，这里的客户端主要说的是生产者和消费者。
+    //对于生产者，可以发送消息到多个Topic，因此一般是在发送第一条消息时，才会根据Topic获取从NameServer获取路由信息。
+    //对于消费者，订阅的Topic一般是固定的，所在在启动时就会拉取。
+    //那么生产者/消费者在工作的过程中，如果路由信息发生了变化怎么处理呢？
+    //如：Broker集群新增了节点，节点宕机或者Queue的数量发生了变化。细心的读者注意到，前面讲解NameServer在路由注册或者路由剔除过程中，
+    //并不会主动推送会客户端的，这意味着，需要由客户端拉取主题的最新路由信息。
     public static void main(String[] args) throws InterruptedException, MQClientException {
 
         /*
@@ -64,14 +69,9 @@ public class Consumer {
         /*
          *  Register callback to execute on arrival of messages fetched from brokers.
          */
-        consumer.registerMessageListener(new MessageListenerConcurrently() {
-
-            @Override
-            public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs,
-                                                            ConsumeConcurrentlyContext context) {
-                System.out.printf("%s Receive New Messages: %s %n", Thread.currentThread().getName(), msgs);
-                return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
-            }
+        consumer.registerMessageListener((MessageListenerConcurrently) (msgs, context) -> {
+            System.out.printf("%s Receive New Messages: %s %n", Thread.currentThread().getName(), msgs);
+            return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
         });
 
         /*

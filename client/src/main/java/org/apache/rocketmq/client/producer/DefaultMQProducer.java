@@ -351,7 +351,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
         Validators.checkMessage(msg, this);
         //
         msg.setTopic(withNamespace(msg.getTopic()));
-        //
+        //发送
         return this.defaultMQProducerImpl.send(msg);
     }
 

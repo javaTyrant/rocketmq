@@ -193,35 +193,43 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
     @Override
     public void start() {
+        //
         this.defaultEventExecutorGroup = new DefaultEventExecutorGroup(
                 nettyServerConfig.getServerWorkerThreads(),
                 new ThreadFactory() {
-
-                    private AtomicInteger threadIndex = new AtomicInteger(0);
+                    private final AtomicInteger threadIndex = new AtomicInteger(0);
 
                     @Override
                     public Thread newThread(Runnable r) {
                         return new Thread(r, "NettyServerCodecThread_" + this.threadIndex.incrementAndGet());
                     }
                 });
-
+        //
         prepareSharableHandlers();
         //启动远程服务器,接收消息.
         ServerBootstrap childHandler =
                 this.serverBootstrap
                         .group(this.eventLoopGroupBoss, this.eventLoopGroupSelector)
                         .channel(useEpoll() ? EpollServerSocketChannel.class : NioServerSocketChannel.class)
+                        //
                         .option(ChannelOption.SO_BACKLOG, 1024)
+                        //
                         .option(ChannelOption.SO_REUSEADDR, true)
+                        //
                         .option(ChannelOption.SO_KEEPALIVE, false)
+                        //
                         .childOption(ChannelOption.TCP_NODELAY, true)
+                        //
                         .childOption(ChannelOption.SO_SNDBUF, nettyServerConfig.getServerSocketSndBufSize())
+                        //
                         .childOption(ChannelOption.SO_RCVBUF, nettyServerConfig.getServerSocketRcvBufSize())
+                        //
                         .localAddress(new InetSocketAddress(this.nettyServerConfig.getListenPort()))
                         .childHandler(new ChannelInitializer<SocketChannel>() {
                             @Override
                             public void initChannel(SocketChannel ch) {
                                 ch.pipeline()
+                                        //自定义线程池.
                                         .addLast(defaultEventExecutorGroup, HANDSHAKE_HANDLER_NAME, handshakeHandler)
                                         .addLast(defaultEventExecutorGroup,
                                                 //加密
@@ -255,7 +263,6 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         }
 
         this.timer.scheduleAtFixedRate(new TimerTask() {
-
             @Override
             public void run() {
                 try {

@@ -149,14 +149,13 @@ public abstract class NettyRemotingAbstract {
      * @param msg incoming remoting command.
      */
     public void processMessageReceived(ChannelHandlerContext ctx, RemotingCommand msg) {
-        final RemotingCommand cmd = msg;
-        if (cmd != null) {
-            switch (cmd.getType()) {
+        if (msg != null) {
+            switch (msg.getType()) {
                 case REQUEST_COMMAND:
-                    processRequestCommand(ctx, cmd);
+                    processRequestCommand(ctx, msg);
                     break;
                 case RESPONSE_COMMAND:
-                    processResponseCommand(ctx, cmd);
+                    processResponseCommand(ctx, msg);
                     break;
                 default:
                     break;
@@ -278,6 +277,7 @@ public abstract class NettyRemotingAbstract {
      */
     public void processResponseCommand(ChannelHandlerContext ctx, RemotingCommand cmd) {
         final int opaque = cmd.getOpaque();
+        //
         final ResponseFuture responseFuture = responseTable.get(opaque);
         if (responseFuture != null) {
             responseFuture.setResponseCommand(cmd);
@@ -449,18 +449,21 @@ public abstract class NettyRemotingAbstract {
                 once.release();
                 throw new RemotingTimeoutException("invokeAsyncImpl call timeout");
             }
-
-            final ResponseFuture responseFuture = new ResponseFuture(channel, opaque, timeoutMillis - costTime, invokeCallback, once);
+            //invokeCallback什么时候触发的?
+            final ResponseFuture responseFuture =
+                    new ResponseFuture(channel, opaque, timeoutMillis - costTime, invokeCallback, once);
+            //
             this.responseTable.put(opaque, responseFuture);
             try {
-                channel.writeAndFlush(request).addListener((ChannelFutureListener) f -> {
-                    if (f.isSuccess()) {
-                        responseFuture.setSendRequestOK(true);
-                        return;
-                    }
-                    requestFail(opaque);
-                    log.warn("send a request command to channel <{}> failed.", RemotingHelper.parseChannelRemoteAddr(channel));
-                });
+                channel.writeAndFlush(request)
+                        .addListener((ChannelFutureListener) f -> {
+                            if (f.isSuccess()) {
+                                responseFuture.setSendRequestOK(true);
+                                return;
+                            }
+                            requestFail(opaque);
+                            log.warn("send a request command to channel <{}> failed.", RemotingHelper.parseChannelRemoteAddr(channel));
+                        });
             } catch (Exception e) {
                 responseFuture.release();
                 log.warn("send a request command to channel <" + RemotingHelper.parseChannelRemoteAddr(channel) + "> Exception", e);

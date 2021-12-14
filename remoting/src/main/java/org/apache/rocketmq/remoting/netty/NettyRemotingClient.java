@@ -94,7 +94,9 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
      * Invoke the callback methods in this executor when process response.
      */
     private ExecutorService callbackExecutor;
+    //
     private final ChannelEventListener channelEventListener;
+    //
     private DefaultEventExecutorGroup defaultEventExecutorGroup;
 
     public NettyRemotingClient(final NettyClientConfig nettyClientConfig) {
@@ -542,6 +544,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                 if (timeoutMillis < costTime) {
                     throw new RemotingTooMuchRequestException("invokeAsync call timeout");
                 }
+                //异步调用.
                 this.invokeAsyncImpl(channel, request, timeoutMillis - costTime, invokeCallback);
             } catch (RemotingSendRequestException e) {
                 log.warn("invokeAsync: send request exception, so close the channel[{}]", addr);

@@ -210,15 +210,18 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         this.offsetStore = offsetStore;
     }
 
+    //拉消息.
     public void pullMessage(final PullRequest pullRequest) {
+        //获取processQueue.什么时候往这里放的呢?
         final ProcessQueue processQueue = pullRequest.getProcessQueue();
+        //
         if (processQueue.isDropped()) {
             log.info("the pull request[{}] is dropped.", pullRequest.toString());
             return;
         }
-
+        //时间戳设置.
         pullRequest.getProcessQueue().setLastPullTimestamp(System.currentTimeMillis());
-
+        //
         try {
             this.makeSureStateOK();
         } catch (MQClientException e) {
@@ -236,8 +239,11 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         long cachedMessageCount = processQueue.getMsgCount().get();
         long cachedMessageSizeInMiB = processQueue.getMsgSize().get() / (1024 * 1024);
 
+        //如果消息总数大于1000
         if (cachedMessageCount > this.defaultMQPushConsumer.getPullThresholdForQueue()) {
+            //延迟放入则将拉取任务延迟一秒再次放入PullMessageService的拉取任务队列中
             this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
+            // 流控次数达到1000次则打警告日志
             if ((queueFlowControlTimes++ % 1000) == 0) {
                 log.warn(
                         "the cached message count exceeds the threshold {}, so do flow control, minOffset={}, maxOffset={}, count={}, size={} MiB, pullRequest={}, flowControlTimes={}",
@@ -245,8 +251,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             }
             return;
         }
-
+        //如果消息大小大于100MB.所有消息的大小.
         if (cachedMessageSizeInMiB > this.defaultMQPushConsumer.getPullThresholdSizeForQueue()) {
+            // 延迟放入则将拉取任务延迟一秒再次放入PullMessageService的拉取任务队列中
             this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
             if ((queueFlowControlTimes++ % 1000) == 0) {
                 log.warn(
@@ -256,7 +263,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             return;
         }
 
+        //如果不是顺序消息
         if (!this.consumeOrderly) {
+            //如果快照内的消息最大偏移量间隔大于2000
             if (processQueue.getMaxSpan() > this.defaultMQPushConsumer.getConsumeConcurrentlyMaxSpan()) {
                 this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
                 if ((queueMaxSpanFlowControlTimes++ % 1000) == 0) {
@@ -426,6 +435,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 classFilter // class filter
         );
         try {
+            //最终拉取消息.
             this.pullAPIWrapper.pullKernelImpl(
                     pullRequest.getMessageQueue(),
                     subExpression,

@@ -20,21 +20,24 @@
  */
 package org.apache.rocketmq.common.namesrv;
 
-import java.io.IOException;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.common.help.FAQUrl;
+import org.apache.rocketmq.common.utils.HttpTinyClient;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
-import org.apache.rocketmq.common.utils.HttpTinyClient;
+
+import java.io.IOException;
 
 public class TopAddressing {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
-
+    //
     private String nsAddr;
-    private String wsAddr;
-    private String unitName;
+    //
+    private final String wsAddr;
+    //
+    private final String unitName;
 
     public TopAddressing(final String wsAddr) {
         this(wsAddr, null);
@@ -60,6 +63,7 @@ public class TopAddressing {
         return newString;
     }
 
+    //获取nameServer的地址.
     public final String fetchNSAddr() {
         return fetchNSAddr(true, 3000);
     }
@@ -70,6 +74,7 @@ public class TopAddressing {
             if (!UtilAll.isBlank(this.unitName)) {
                 url = url + "-" + this.unitName + "?nofix=1";
             }
+            //
             HttpTinyClient.HttpResult result = HttpTinyClient.httpGet(url, null, null, "UTF-8", timeoutMills);
             if (200 == result.code) {
                 String responseStr = result.content;
@@ -89,7 +94,7 @@ public class TopAddressing {
 
         if (verbose) {
             String errorMsg =
-                "connect to " + url + " failed, maybe the domain name " + MixAll.getWSAddr() + " not bind in /etc/hosts";
+                    "connect to " + url + " failed, maybe the domain name " + MixAll.getWSAddr() + " not bind in /etc/hosts";
             errorMsg += FAQUrl.suggestTodo(FAQUrl.NAME_SERVER_ADDR_NOT_EXIST_URL);
 
             log.warn(errorMsg);

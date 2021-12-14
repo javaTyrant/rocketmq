@@ -38,7 +38,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /**
  * Queue consumption snapshot
  */
-//ProcessQueue是MessageQueue在消息端的快照。PullMessageService从消息服务器默认每次拉取32跳消息，
+//ProcessQueue是MessageQueue在消息端的快照。PullMessageService从消息服务器默认每次拉取32条消息，
 //按消息的队列偏移量顺序存放在ProcessQueue中，PullMessageService然后将消息提交到消费者消费线程池，消息成功消费后从ProcessQueue中移除。
 public class ProcessQueue {
     //
@@ -64,14 +64,23 @@ public class ProcessQueue {
      * A subset of msgTreeMap, will only be used when orderly consume
      */
     private final TreeMap<Long, MessageExt> consumingMsgOrderlyTreeMap = new TreeMap<>();
+    //
     private final AtomicLong tryUnlockTimes = new AtomicLong(0);
+    //
     private volatile long queueOffsetMax = 0L;
+    //
     private volatile boolean dropped = false;
+    //
     private volatile long lastPullTimestamp = System.currentTimeMillis();
+    //
     private volatile long lastConsumeTimestamp = System.currentTimeMillis();
+    //
     private volatile boolean locked = false;
+    //
     private volatile long lastLockTimestamp = System.currentTimeMillis();
+    //
     private volatile boolean consuming = false;
+    //
     private volatile long msgAccCnt = 0;
 
     public boolean isLockExpired() {
@@ -90,7 +99,7 @@ public class ProcessQueue {
             return;
         }
 
-        int loop = msgTreeMap.size() < 16 ? msgTreeMap.size() : 16;
+        int loop = Math.min(msgTreeMap.size(), 16);
         for (int i = 0; i < loop; i++) {
             MessageExt msg = null;
             try {
@@ -207,7 +216,7 @@ public class ProcessQueue {
                         MessageExt prev = msgTreeMap.remove(msg.getQueueOffset());
                         if (prev != null) {
                             removedCnt--;
-                            msgSize.addAndGet(0 - msg.getBody().length);
+                            msgSize.addAndGet(-msg.getBody().length);
                         }
                     }
                     msgCount.addAndGet(removedCnt);
@@ -273,9 +282,9 @@ public class ProcessQueue {
             this.treeMapLock.writeLock().lockInterruptibly();
             try {
                 Long offset = this.consumingMsgOrderlyTreeMap.lastKey();
-                msgCount.addAndGet(0 - this.consumingMsgOrderlyTreeMap.size());
+                msgCount.addAndGet(-this.consumingMsgOrderlyTreeMap.size());
                 for (MessageExt msg : this.consumingMsgOrderlyTreeMap.values()) {
-                    msgSize.addAndGet(0 - msg.getBody().length);
+                    msgSize.addAndGet(-msg.getBody().length);
                 }
                 this.consumingMsgOrderlyTreeMap.clear();
                 if (offset != null) {
@@ -308,7 +317,7 @@ public class ProcessQueue {
     }
 
     public List<MessageExt> takeMessages(final int batchSize) {
-        List<MessageExt> result = new ArrayList<MessageExt>(batchSize);
+        List<MessageExt> result = new ArrayList<>(batchSize);
         final long now = System.currentTimeMillis();
         try {
             this.treeMapLock.writeLock().lockInterruptibly();

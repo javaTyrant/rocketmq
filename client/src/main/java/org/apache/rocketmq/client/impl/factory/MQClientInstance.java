@@ -203,7 +203,7 @@ public class MQClientInstance {
     }
 
     public static Set<MessageQueue> topicRouteData2TopicSubscribeInfo(final String topic, final TopicRouteData route) {
-        Set<MessageQueue> mqList = new HashSet<MessageQueue>();
+        Set<MessageQueue> mqList = new HashSet<>();
         List<QueueData> qds = route.getQueueDatas();
         for (QueueData qd : qds) {
             if (PermName.isReadable(qd.getPerm())) {
@@ -365,7 +365,7 @@ public class MQClientInstance {
         try {
             if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS))
                 try {
-                    ConcurrentHashMap<String, HashMap<Long, String>> updatedTable = new ConcurrentHashMap<String, HashMap<Long, String>>();
+                    ConcurrentHashMap<String, HashMap<Long, String>> updatedTable = new ConcurrentHashMap<>();
 
                     Iterator<Entry<String, HashMap<Long, String>>> itBrokerTable = this.brokerAddrTable.entrySet().iterator();
                     while (itBrokerTable.hasNext()) {
@@ -373,7 +373,7 @@ public class MQClientInstance {
                         String brokerName = entry.getKey();
                         HashMap<Long, String> oneTable = entry.getValue();
 
-                        HashMap<Long, String> cloneAddrTable = new HashMap<Long, String>();
+                        HashMap<Long, String> cloneAddrTable = new HashMap<>();
                         cloneAddrTable.putAll(oneTable);
 
                         Iterator<Entry<Long, String>> it = cloneAddrTable.entrySet().iterator();

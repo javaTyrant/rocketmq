@@ -194,7 +194,9 @@ public abstract class NettyRemotingAbstract {
         if (pair != null) {
             Runnable run = () -> {
                 try {
+                    //
                     String remoteAddr = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
+                    //
                     doBeforeRpcHooks(remoteAddr, cmd);
                     final RemotingResponseCallback callback = response -> {
                         doAfterRpcHooks(remoteAddr, cmd, response);

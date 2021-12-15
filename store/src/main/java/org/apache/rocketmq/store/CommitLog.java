@@ -923,11 +923,17 @@ public class CommitLog {
         return -1;
     }
 
+    //
     public SelectMappedBufferResult getMessage(final long offset, final int size) {
+        //获取映射的文件大小.
         int mappedFileSize = this.defaultMessageStore.getMessageStoreConfig().getMappedFileSizeCommitLog();
+        //获取映射文件
         MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset, offset == 0);
+        //
         if (mappedFile != null) {
+            //
             int pos = (int) (offset % mappedFileSize);
+            //
             return mappedFile.selectMappedBuffer(pos, size);
         }
         return null;

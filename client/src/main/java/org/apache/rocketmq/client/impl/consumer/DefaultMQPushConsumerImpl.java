@@ -229,16 +229,16 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
             return;
         }
-
+        //消费者暂停消费了.
         if (this.isPause()) {
             log.warn("consumer was paused, execute pull request later. instanceName={}, group={}", this.defaultMQPushConsumer.getInstanceName(), this.defaultMQPushConsumer.getConsumerGroup());
             this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_SUSPEND);
             return;
         }
-
+        //
         long cachedMessageCount = processQueue.getMsgCount().get();
+        //
         long cachedMessageSizeInMiB = processQueue.getMsgSize().get() / (1024 * 1024);
-
         //如果消息总数大于1000
         if (cachedMessageCount > this.defaultMQPushConsumer.getPullThresholdForQueue()) {
             //延迟放入则将拉取任务延迟一秒再次放入PullMessageService的拉取任务队列中
@@ -279,23 +279,27 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         } else {
             if (processQueue.isLocked()) {
                 if (!pullRequest.isPreviouslyLocked()) {
-                    long offset = -1L;
+                    long offset;
                     try {
+                        //
                         offset = this.rebalanceImpl.computePullFromWhereWithException(pullRequest.getMessageQueue());
                     } catch (Exception e) {
                         this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
                         log.error("Failed to compute pull offset, pullResult: {}", pullRequest, e);
                         return;
                     }
+                    //
                     boolean brokerBusy = offset < pullRequest.getNextOffset();
+                    //
                     log.info("the first time to pull message, so fix offset from broker. pullRequest: {} NewOffset: {} brokerBusy: {}",
                             pullRequest, offset, brokerBusy);
                     if (brokerBusy) {
                         log.info("[NOTIFYME]the first time to pull message, but pull request offset larger than broker consume offset. pullRequest: {} NewOffset: {}",
                                 pullRequest, offset);
                     }
-
+                    //
                     pullRequest.setPreviouslyLocked(true);
+                    //
                     pullRequest.setNextOffset(offset);
                 }
             } else {
@@ -304,23 +308,28 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 return;
             }
         }
-
+        //根据topic信息获取订阅信息.
         final SubscriptionData subscriptionData = this.rebalanceImpl.getSubscriptionInner().get(pullRequest.getMessageQueue().getTopic());
+        //
         if (null == subscriptionData) {
             this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
             log.warn("find the consumer's subscription failed, {}", pullRequest);
             return;
         }
-
+        //
         final long beginTimestamp = System.currentTimeMillis();
-
+        //拉消息回调参数.
         PullCallback pullCallback = new PullCallback() {
             @Override
             public void onSuccess(PullResult pullResult) {
+                //如果拉取成功.
                 if (pullResult != null) {
-                    pullResult = DefaultMQPushConsumerImpl.this.pullAPIWrapper.processPullResult(pullRequest.getMessageQueue(), pullResult,
-                            subscriptionData);
-
+                    //
+                    pullResult = DefaultMQPushConsumerImpl
+                            .this
+                            .pullAPIWrapper
+                            .processPullResult(pullRequest.getMessageQueue(), pullResult, subscriptionData);
+                    //
                     switch (pullResult.getPullStatus()) {
                         case FOUND:
                             long prevRequestOffset = pullRequest.getNextOffset();
@@ -339,6 +348,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                                         pullRequest.getMessageQueue().getTopic(), pullResult.getMsgFoundList().size());
 
                                 boolean dispatchToConsume = processQueue.putMessage(pullResult.getMsgFoundList());
+                                //关键点:
                                 DefaultMQPushConsumerImpl.this.consumeMessageService.submitConsumeRequest(
                                         pullResult.getMsgFoundList(),
                                         processQueue,
@@ -352,16 +362,14 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                                     DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
                                 }
                             }
-
-                            if (pullResult.getNextBeginOffset() < prevRequestOffset
-                                    || firstMsgOffset < prevRequestOffset) {
+                            //
+                            if (pullResult.getNextBeginOffset() < prevRequestOffset || firstMsgOffset < prevRequestOffset) {
                                 log.warn(
                                         "[BUG] pull message result maybe data wrong, nextBeginOffset: {} firstMsgOffset: {} prevRequestOffset: {}",
                                         pullResult.getNextBeginOffset(),
                                         firstMsgOffset,
                                         prevRequestOffset);
                             }
-
                             break;
                         case NO_NEW_MSG:
                         case NO_MATCHED_MSG:
@@ -407,9 +415,10 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 DefaultMQPushConsumerImpl.this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
             }
         };
-
+        //
         boolean commitOffsetEnable = false;
         long commitOffsetValue = 0L;
+        //
         if (MessageModel.CLUSTERING == this.defaultMQPushConsumer.getMessageModel()) {
             commitOffsetValue = this.offsetStore.readOffset(pullRequest.getMessageQueue(), ReadOffsetType.READ_FROM_MEMORY);
             if (commitOffsetValue > 0) {

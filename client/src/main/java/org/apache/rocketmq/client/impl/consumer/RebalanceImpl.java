@@ -138,25 +138,33 @@ public abstract class RebalanceImpl {
         return result;
     }
 
+    //
     public boolean lock(final MessageQueue mq) {
-        FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), MixAll.MASTER_ID, true);
+        //
+        FindBrokerResult findBrokerResult = this.mQClientFactory
+                .findBrokerAddressInSubscribe(mq.getBrokerName(), MixAll.MASTER_ID, true);
+        //
         if (findBrokerResult != null) {
+            //
             LockBatchRequestBody requestBody = new LockBatchRequestBody();
             requestBody.setConsumerGroup(this.consumerGroup);
             requestBody.setClientId(this.mQClientFactory.getClientId());
             requestBody.getMqSet().add(mq);
-
             try {
+                //lockBatchMq
                 Set<MessageQueue> lockedMq =
                         this.mQClientFactory.getMQClientAPIImpl().lockBatchMQ(findBrokerResult.getBrokerAddr(), requestBody, 1000);
+                //
                 for (MessageQueue mmqq : lockedMq) {
+                    //
                     ProcessQueue processQueue = this.processQueueTable.get(mmqq);
+                    //
                     if (processQueue != null) {
                         processQueue.setLocked(true);
                         processQueue.setLastLockTimestamp(System.currentTimeMillis());
                     }
                 }
-
+                //
                 boolean lockOK = lockedMq.contains(mq);
                 log.info("the message queue lock {}, {} {}",
                         lockOK ? "OK" : "Failed",
@@ -329,6 +337,7 @@ public abstract class RebalanceImpl {
         }
     }
 
+    //
     private boolean updateProcessQueueTableInRebalance(final String topic, final Set<MessageQueue> mqSet,
                                                        final boolean isOrder) {
         boolean changed = false;
@@ -368,8 +377,11 @@ public abstract class RebalanceImpl {
         }
 
         List<PullRequest> pullRequestList = new ArrayList<>();
+        //遍历分配的消息队列
         for (MessageQueue mq : mqSet) {
+            //如果不包含.
             if (!this.processQueueTable.containsKey(mq)) {
+                //如果是顺序消费且没有获取到锁.
                 if (isOrder && !this.lock(mq)) {
                     log.warn("doRebalance, {}, add a new mq failed, {}, because lock failed", consumerGroup, mq);
                     continue;

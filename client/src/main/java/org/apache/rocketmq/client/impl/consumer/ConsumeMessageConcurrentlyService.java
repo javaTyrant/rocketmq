@@ -50,15 +50,23 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class ConsumeMessageConcurrentlyService implements ConsumeMessageService {
+    //
     private static final InternalLogger log = ClientLogger.getLog();
+    //
     private final DefaultMQPushConsumerImpl defaultMQPushConsumerImpl;
+    //
     private final DefaultMQPushConsumer defaultMQPushConsumer;
+    //
     private final MessageListenerConcurrently messageListener;
+    //
     private final BlockingQueue<Runnable> consumeRequestQueue;
+    //
     private final ThreadPoolExecutor consumeExecutor;
+    //
     private final String consumerGroup;
-
+    //
     private final ScheduledExecutorService scheduledExecutorService;
+    //
     private final ScheduledExecutorService cleanExpireMsgExecutors;
 
     //
@@ -180,6 +188,9 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
         return result;
     }
 
+    //synchronized申请线程独占锁
+    //假设消费者对messageQueue的加锁已经成功，那么就进入到了第二个步骤，创建pullRequest进行消息拉取，消息拉取部分的代码实现在PullMessageService中，
+    //消息拉取完后，需要提交到ConsumeMessageService中进行消费，顺序消费的实现为ConsumeMessageOrderlyService，提交消息进行消费的方法为ConsumeMessageOrderlyService#submitConsumeRequest，具体实现如下
     @Override
     public void submitConsumeRequest(
             final List<MessageExt> msgs,
@@ -190,6 +201,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
         if (msgs.size() <= consumeBatchSize) {
             ConsumeRequest consumeRequest = new ConsumeRequest(msgs, processQueue, messageQueue);
             try {
+                //
                 this.consumeExecutor.submit(consumeRequest);
             } catch (RejectedExecutionException e) {
                 this.submitConsumeRequestLater(consumeRequest);
@@ -318,24 +330,15 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
             final MessageQueue messageQueue
     ) {
 
-        this.scheduledExecutorService.schedule(new Runnable() {
-
-            @Override
-            public void run() {
-                ConsumeMessageConcurrentlyService.this.submitConsumeRequest(msgs, processQueue, messageQueue, true);
-            }
-        }, 5000, TimeUnit.MILLISECONDS);
+        this.scheduledExecutorService
+                .schedule(() -> ConsumeMessageConcurrentlyService
+                        .this
+                        .submitConsumeRequest(msgs, processQueue, messageQueue, true), 5000, TimeUnit.MILLISECONDS);
     }
 
-    private void submitConsumeRequestLater(final ConsumeRequest consumeRequest
-    ) {
-
-        this.scheduledExecutorService.schedule(new Runnable() {
-
-            @Override
-            public void run() {
-                ConsumeMessageConcurrentlyService.this.consumeExecutor.submit(consumeRequest);
-            }
+    private void submitConsumeRequestLater(final ConsumeRequest consumeRequest) {
+        this.scheduledExecutorService.schedule(() -> {
+            ConsumeMessageConcurrentlyService.this.consumeExecutor.submit(consumeRequest);
         }, 5000, TimeUnit.MILLISECONDS);
     }
 
@@ -360,11 +363,12 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
 
         @Override
         public void run() {
+            //
             if (this.processQueue.isDropped()) {
                 log.info("the message queue not be able to consume, because it's dropped. group={} {}", ConsumeMessageConcurrentlyService.this.consumerGroup, this.messageQueue);
                 return;
             }
-
+            //
             MessageListenerConcurrently listener = ConsumeMessageConcurrentlyService.this.messageListener;
             ConsumeConcurrentlyContext context = new ConsumeConcurrentlyContext(messageQueue);
             ConsumeConcurrentlyStatus status = null;
@@ -375,7 +379,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 consumeMessageContext = new ConsumeMessageContext();
                 consumeMessageContext.setNamespace(defaultMQPushConsumer.getNamespace());
                 consumeMessageContext.setConsumerGroup(defaultMQPushConsumer.getConsumerGroup());
-                consumeMessageContext.setProps(new HashMap<String, String>());
+                consumeMessageContext.setProps(new HashMap<>());
                 consumeMessageContext.setMq(messageQueue);
                 consumeMessageContext.setMsgList(msgs);
                 consumeMessageContext.setSuccess(false);

@@ -150,7 +150,6 @@ import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
 import org.apache.rocketmq.remoting.exception.RemotingTooMuchRequestException;
 import org.apache.rocketmq.remoting.netty.NettyClientConfig;
 import org.apache.rocketmq.remoting.netty.NettyRemotingClient;
-import org.apache.rocketmq.remoting.netty.ResponseFuture;
 import org.apache.rocketmq.remoting.protocol.LanguageCode;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
@@ -174,10 +173,12 @@ public class MQClientAPIImpl {
     //
     private static final boolean sendSmartMsg =
             Boolean.parseBoolean(System.getProperty("org.apache.rocketmq.client.sendSmartMsg", "true"));
+
     //
     static {
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
     }
+
     //
     private final RemotingClient remotingClient;
     //
@@ -722,7 +723,7 @@ public class MQClientAPIImpl {
             final PullCallback pullCallback
     ) throws RemotingException, MQBrokerException, InterruptedException {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.PULL_MESSAGE, requestHeader);
-
+        //服务器端是如何处理的?
         switch (communicationMode) {
             case ONEWAY:
                 assert false;
@@ -744,8 +745,7 @@ public class MQClientAPIImpl {
             final String addr,
             final RemotingCommand request,
             final long timeoutMillis,
-            final PullCallback pullCallback
-    ) throws RemotingException, InterruptedException {
+            final PullCallback pullCallback) throws RemotingException, InterruptedException {
         this.remotingClient.invokeAsync(addr, request, timeoutMillis, responseFuture -> {
             RemotingCommand response = responseFuture.getResponseCommand();
             if (response != null) {

@@ -18,11 +18,15 @@ package org.apache.rocketmq.common.message;
 
 import java.io.Serializable;
 
-//消息队列.
+//消息队列.为什么要可比较?
 public class MessageQueue implements Comparable<MessageQueue>, Serializable {
+    //
     private static final long serialVersionUID = 6191200464116433425L;
+    //
     private String topic;
+    //
     private String brokerName;
+    //
     private int queueId;
 
     public MessageQueue() {
@@ -100,20 +104,21 @@ public class MessageQueue implements Comparable<MessageQueue>, Serializable {
 
     @Override
     public int compareTo(MessageQueue o) {
+        //先比较
         {
             int result = this.topic.compareTo(o.topic);
             if (result != 0) {
                 return result;
             }
         }
-
+        //再比较brokerName
         {
             int result = this.brokerName.compareTo(o.brokerName);
             if (result != 0) {
                 return result;
             }
         }
-
+        //最后比较queueId
         return this.queueId - o.queueId;
     }
 }

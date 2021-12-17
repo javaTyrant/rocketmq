@@ -116,17 +116,16 @@ public class MappedFile extends ReferenceResource {
     }
 
     private static Object invoke(final Object target, final String methodName, final Class<?>... args) {
-        return AccessController.doPrivileged(new PrivilegedAction<Object>() {
-            public Object run() {
-                try {
-                    Method method = method(target, methodName, args);
-                    method.setAccessible(true);
-                    return method.invoke(target);
-                } catch (Exception e) {
-                    throw new IllegalStateException(e);
-                }
-            }
-        });
+        return AccessController
+                .doPrivileged((PrivilegedAction<Object>) () -> {
+                    try {
+                        Method method = method(target, methodName, args);
+                        method.setAccessible(true);
+                        return method.invoke(target);
+                    } catch (Exception e) {
+                        throw new IllegalStateException(e);
+                    }
+                });
     }
 
     private static Method method(Object target, String methodName, Class<?>[] args)
@@ -185,9 +184,12 @@ public class MappedFile extends ReferenceResource {
         ensureDirOK(this.file.getParent());
         //
         try {
-            //标准的mmap步骤
+            //标准的mmap步骤.在磁盘
             this.fileChannel = new RandomAccessFile(this.file, "rw").getChannel();
-            //
+            //A direct byte buffer whose content is a memory-mapped region of a file.
+            //它的作用是将一个文件或者其它对象的一部分内容映射到进程的地址空间。
+            //这样进程就可以直接读写这一段内存，而系统会自动回写脏页面到对应的文件磁盘上，即完成了对文件的操作而不必再调用read,write等系统调用函数。
+            //相反，内核空间对这段区域的修改也直接反映用户空间。通过mmap也可以实现不同进程间的共享内存。
             this.mappedByteBuffer = this.fileChannel.map(MapMode.READ_WRITE, 0, fileSize);
             //
             TOTAL_MAPPED_VIRTUAL_MEMORY.addAndGet(fileSize);
@@ -268,14 +270,14 @@ public class MappedFile extends ReferenceResource {
         //
         if ((currentPos + data.length) <= this.fileSize) {
             try {
-                //
+                //设置当前写的位置
                 this.fileChannel.position(currentPos);
-                //
+                //写
                 this.fileChannel.write(ByteBuffer.wrap(data));
             } catch (Throwable e) {
                 log.error("Error occurred when append message to mappedFile.", e);
             }
-            //
+            //写完后的位置.
             this.wrotePosition.addAndGet(data.length);
             //
             return true;
@@ -291,8 +293,9 @@ public class MappedFile extends ReferenceResource {
      * @param length The length of the subarray to be used.
      */
     public boolean appendMessage(final byte[] data, final int offset, final int length) {
+        //
         int currentPos = this.wrotePosition.get();
-
+        //
         if ((currentPos + length) <= this.fileSize) {
             try {
                 this.fileChannel.position(currentPos);
@@ -303,7 +306,6 @@ public class MappedFile extends ReferenceResource {
             this.wrotePosition.addAndGet(length);
             return true;
         }
-
         return false;
     }
 

@@ -590,16 +590,21 @@ public class MQClientInstance {
         }
     }
 
+    //从nr更新topic的路由信息.
     public boolean updateTopicRouteInfoFromNameServer(final String topic, boolean isDefault,
                                                       DefaultMQProducer defaultMQProducer) {
         try {
+            //
             if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     TopicRouteData topicRouteData;
                     if (isDefault && defaultMQProducer != null) {
+                        //
                         topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(),
                                 clientConfig.getMqClientApiTimeout());
+                        //
                         if (topicRouteData != null) {
+                            //
                             for (QueueData data : topicRouteData.getQueueDatas()) {
                                 int queueNums = Math.min(defaultMQProducer.getDefaultTopicQueueNums(), data.getReadQueueNums());
                                 data.setReadQueueNums(queueNums);
@@ -607,6 +612,8 @@ public class MQClientInstance {
                             }
                         }
                     } else {
+                        // 从manesrv获取topic的路由信息，namesrv从topicQueueTable获取到该topic对应的所有的QueueData
+                        // 然后将每个brokerName下的BrokerData返回
                         topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, clientConfig.getMqClientApiTimeout());
                     }
                     if (topicRouteData != null) {
@@ -620,8 +627,9 @@ public class MQClientInstance {
 
                         if (changed) {
                             TopicRouteData cloneTopicRouteData = topicRouteData.cloneTopicRouteData();
-
+                            //每个broker set下所有的broker地址(ip:port)
                             for (BrokerData bd : topicRouteData.getBrokerDatas()) {
+                                //
                                 this.brokerAddrTable.put(bd.getBrokerName(), bd.getBrokerAddrs());
                             }
 
@@ -989,13 +997,13 @@ public class MQClientInstance {
 
         return null;
     }
-
+    //
     public String findBrokerAddressInPublish(final String brokerName) {
         HashMap<Long/* brokerId */, String/* address */> map = this.brokerAddrTable.get(brokerName);
         if (map != null && !map.isEmpty()) {
+            //获取brokerId为0的地址.
             return map.get(MixAll.MASTER_ID);
         }
-
         return null;
     }
 

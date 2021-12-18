@@ -42,7 +42,7 @@ public interface LibC extends Library {
     int mlock(Pointer var1, NativeLong var2);
 
     int munlock(Pointer var1, NativeLong var2);
-
+    //函数可以对映射的内存提出使用建议，减少在程序运行时的硬盘缺页中断。
     int madvise(Pointer var1, NativeLong var2, int var3);
 
     Pointer memset(Pointer p, int v, long len);

@@ -43,6 +43,7 @@ import java.security.PrivilegedAction;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+//把具体的实现封装在appendMessage里.
 public class MappedFile extends ReferenceResource {
     //日志
     protected static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
@@ -338,7 +339,12 @@ public class MappedFile extends ReferenceResource {
         return this.getFlushedPosition();
     }
 
+    //本次提交最小的页数.，如果待提交数据不满commitLeastPages(默认4*4kb)，则不执行本次提交操作，待下次提交。
+    //commit的作用就是将writeBuffer 中的数据提交到FileChannel中。
     public int commit(final int commitLeastPages) {
+        //1.writeBuffer 为空就不提交，而writeBuffer只有开启,
+        //transientStorePoolEnable为true并且是异步刷盘模式才会不为空
+        //所以commit是针对异步刷盘使用的
         if (writeBuffer == null) {
             //no need to commit data to file channel, so just regard wrotePosition as committedPosition.
             return this.wrotePosition.get();
@@ -351,9 +357,9 @@ public class MappedFile extends ReferenceResource {
                 log.warn("in commit, hold failed, commit offset = " + this.committedPosition.get());
             }
         }
-
         // All dirty data has been committed to FileChannel.
         if (writeBuffer != null && this.transientStorePool != null && this.fileSize == this.committedPosition.get()) {
+            //清理工作，归还到堆外内存池中，并且释放当前writeBuffer
             this.transientStorePool.returnBuffer(writeBuffer);
             this.writeBuffer = null;
         }
@@ -362,15 +368,20 @@ public class MappedFile extends ReferenceResource {
     }
 
     protected void commit0() {
+        //
         int writePos = this.wrotePosition.get();
+        //
         int lastCommittedPosition = this.committedPosition.get();
 
         if (writePos - lastCommittedPosition > 0) {
             try {
+                //slice:Creates a new byte buffer whose content is a shared subsequence of this buffer's content.
                 ByteBuffer byteBuffer = writeBuffer.slice();
                 byteBuffer.position(lastCommittedPosition);
                 byteBuffer.limit(writePos);
+                //
                 this.fileChannel.position(lastCommittedPosition);
+                //此时,写到fileChannel里了,还没有写到磁盘中,
                 this.fileChannel.write(byteBuffer);
                 this.committedPosition.set(writePos);
             } catch (Throwable e) {
@@ -388,6 +399,7 @@ public class MappedFile extends ReferenceResource {
         }
 
         if (flushLeastPages > 0) {
+            //总共写入的页大小-已经提交的页大小>=最少一次写入的页大小，OS_PAGE_SIZE默认4kb
             return ((write / OS_PAGE_SIZE) - (flush / OS_PAGE_SIZE)) >= flushLeastPages;
         }
 
@@ -395,17 +407,16 @@ public class MappedFile extends ReferenceResource {
     }
 
     protected boolean isAbleToCommit(final int commitLeastPages) {
+        //
         int flush = this.committedPosition.get();
         int write = this.wrotePosition.get();
-
+        //
         if (this.isFull()) {
             return true;
         }
-
         if (commitLeastPages > 0) {
             return ((write / OS_PAGE_SIZE) - (flush / OS_PAGE_SIZE)) >= commitLeastPages;
         }
-
         return write > flush;
     }
 
@@ -525,6 +536,14 @@ public class MappedFile extends ReferenceResource {
         this.committedPosition.set(pos);
     }
 
+    //对当前映射文件进行预热
+    //第一步：对当前映射文件的每个内存页写入一个字节0.当刷盘策略为同步刷盘时，执行强制刷盘，并且是每修改pages(默认是16MB)个分页刷一次盘
+    //第二步：将当前MappedFile全部的地址空间锁定在物理存储中，防止其被交换到swap空间。
+    //再调用madvise，传入 MADV_WILLNEED 策略，将刚刚锁住的内存预热，其实就是告诉内核，
+    //我马上就要用（MADV_WILLNEED）这块内存，先做虚拟内存到物理内存的映射，防止正式使用时产生缺页中断。
+    //使用mmap()内存分配时，只是建立了进程虚拟地址空间，并没有分配虚拟内存对应的物理内存。当进程访问这些没有建立映射关系的虚拟内存时，
+    //处理器自动触发一个缺页异常，进而进入内核空间分配物理内存、更新进程缓存表，最后返回用户空间，恢复进程运行。
+    //写入假值0的意义在于实际分配物理内存，在消息写入时防止缺页异常。
     public void warmMappedFile(FlushDiskType type, int pages) {
         long beginTime = System.currentTimeMillis();
         ByteBuffer byteBuffer = this.mappedByteBuffer.slice();
@@ -597,7 +616,7 @@ public class MappedFile extends ReferenceResource {
             log.info("mlock {} {} {} ret = {} time consuming = {}", address, this.fileName, this.fileSize, ret, System.currentTimeMillis() - beginTime);
         }
 
-        {
+        {   //java是如何调用C函数库的.
             int ret = LibC.INSTANCE.madvise(pointer, new NativeLong(this.fileSize), LibC.MADV_WILLNEED);
             log.info("madvise {} {} {} ret = {} time consuming = {}", address, this.fileName, this.fileSize, ret, System.currentTimeMillis() - beginTime);
         }

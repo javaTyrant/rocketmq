@@ -34,7 +34,7 @@ public class MappedFileTest {
 
     @Test
     public void testSelectMappedBuffer() throws IOException {
-        //获取映射
+        //
         MappedFile mappedFile = new MappedFile("target/unit_test_store/MappedFileTest/000", 1024 * 64);
         //.
         boolean result = mappedFile.appendMessage(storeMessage.getBytes());

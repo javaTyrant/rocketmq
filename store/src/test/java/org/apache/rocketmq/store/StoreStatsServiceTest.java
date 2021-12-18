@@ -36,21 +36,18 @@ public class StoreStatsServiceTest {
             final CountDownLatch latch = new CountDownLatch(num);
             final CyclicBarrier barrier = new CyclicBarrier(num);
             for (int i = 0; i < num; i++) {
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            barrier.await();
-                            LongAdder longAdder = storeStatsService.getSinglePutMessageTopicSizeTotal("test");
-                            if (reference.compareAndSet(null, longAdder)) {
-                            } else if (reference.get() != longAdder) {
-                                throw new RuntimeException("Reference should be same!");
-                            }
-                        } catch (InterruptedException | BrokenBarrierException e) {
-                            e.printStackTrace();
-                        } finally {
-                            latch.countDown();
+                new Thread(() -> {
+                    try {
+                        barrier.await();
+                        LongAdder longAdder = storeStatsService.getSinglePutMessageTopicSizeTotal("test");
+                        if (reference.compareAndSet(null, longAdder)) {
+                        } else if (reference.get() != longAdder) {
+                            throw new RuntimeException("Reference should be same!");
                         }
+                    } catch (InterruptedException | BrokenBarrierException e) {
+                        e.printStackTrace();
+                    } finally {
+                        latch.countDown();
                     }
                 }).start();
             }

@@ -58,18 +58,25 @@ import org.apache.rocketmq.store.StoreStatsService;
 import org.apache.rocketmq.store.schedule.ScheduleMessageService;
 
 /**
- * Store all metadata downtime for recovery, data protection reliability
+ * Store all metadata downtime for recovery, data protection reliability.
+ * 存储所有元数据停机时间以进行恢复，保护数据可靠性。
+ * 多副本.
  */
 public class DLedgerCommitLog extends CommitLog {
+    //服务器
     private final DLedgerServer dLedgerServer;
+    //配置
     private final DLedgerConfig dLedgerConfig;
+    //
     private final DLedgerMmapFileStore dLedgerFileStore;
+    //
     private final MmapFileList dLedgerFileList;
 
     //The id identifies the broker role, 0 means master, others means slave
     private final int id;
-
+    //
     private final MessageSerializer messageSerializer;
+    //
     private volatile long beginTimeInDledgerLock = 0;
 
     //This offset separate the old commitlog from dledger commitlog

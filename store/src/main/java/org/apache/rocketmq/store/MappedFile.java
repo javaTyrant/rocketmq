@@ -111,8 +111,12 @@ public class MappedFile extends ReferenceResource {
     }
 
     public static void clean(final ByteBuffer buffer) {
+        //
         if (buffer == null || !buffer.isDirect() || buffer.capacity() == 0)
             return;
+        //为什么要invoke两次?肯定是先调用cleaner然后还要再调用clean.
+        //DirectByteBuffer -> clean
+        //DirectByteBuffer -> cleaner.
         invoke(invoke(viewed(buffer), "cleaner"), "clean");
     }
 
@@ -138,8 +142,10 @@ public class MappedFile extends ReferenceResource {
         }
     }
 
+    //
     private static ByteBuffer viewed(ByteBuffer buffer) {
         String methodName = "viewedBuffer";
+        //public java.nio.ByteBuffer java.nio.DirectByteBuffer
         Method[] methods = buffer.getClass().getMethods();
         for (int i = 0; i < methods.length; i++) {
             if (methods[i].getName().equals("attachment")) {
@@ -147,7 +153,7 @@ public class MappedFile extends ReferenceResource {
                 break;
             }
         }
-
+        //找到attachment()方法.
         ByteBuffer viewedBuffer = (ByteBuffer) invoke(buffer, methodName);
         if (viewedBuffer == null)
             return buffer;
@@ -233,18 +239,22 @@ public class MappedFile extends ReferenceResource {
         return appendMessagesInner(messageExtBatch, cb, putMessageContext);
     }
 
-    public AppendMessageResult appendMessagesInner(final MessageExt messageExt, final AppendMessageCallback cb,
+    public AppendMessageResult appendMessagesInner(final MessageExt messageExt,
+                                                   final AppendMessageCallback cb,
                                                    PutMessageContext putMessageContext) {
         assert messageExt != null;
         assert cb != null;
-
+        //写位置
         int currentPos = this.wrotePosition.get();
-
+        //
         if (currentPos < this.fileSize) {
             ByteBuffer byteBuffer = writeBuffer != null ? writeBuffer.slice() : this.mappedByteBuffer.slice();
+            //
             byteBuffer.position(currentPos);
             AppendMessageResult result;
+            //
             if (messageExt instanceof MessageExtBrokerInner) {
+                //
                 result = cb.doAppend(this.getFileFromOffset(), byteBuffer, this.fileSize - currentPos,
                         (MessageExtBrokerInner) messageExt, putMessageContext);
             } else if (messageExt instanceof MessageExtBatch) {

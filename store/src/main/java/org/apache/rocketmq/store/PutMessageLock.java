@@ -20,7 +20,13 @@ package org.apache.rocketmq.store;
  * Used when trying to put message
  */
 public interface PutMessageLock {
+    /**
+     * lock
+     */
     void lock();
 
+    /**
+     * unlock
+     */
     void unlock();
 }

@@ -665,7 +665,7 @@ public class CommitLog {
                 beginTimeInLock = 0;
                 return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null));
             }
-
+            //
             result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
             switch (result.getStatus()) {
                 case PUT_OK:
@@ -1177,8 +1177,11 @@ public class CommitLog {
      * GroupCommit Service
      */
     class GroupCommitService extends FlushCommitLogService {
-        private volatile LinkedList<GroupCommitRequest> requestsWrite = new LinkedList<GroupCommitRequest>();
-        private volatile LinkedList<GroupCommitRequest> requestsRead = new LinkedList<GroupCommitRequest>();
+        //写请求
+        private volatile LinkedList<GroupCommitRequest> requestsWrite = new LinkedList<>();
+        //读请求
+        private volatile LinkedList<GroupCommitRequest> requestsRead = new LinkedList<>();
+        //锁.
         private final PutMessageSpinLock lock = new PutMessageSpinLock();
 
         public synchronized void putRequest(final GroupCommitRequest request) {
@@ -1274,6 +1277,7 @@ public class CommitLog {
         }
     }
 
+    //默认的追加消息回调.
     class DefaultAppendMessageCallback implements AppendMessageCallback {
         // File at the end of the minimum fixed length empty
         private static final int END_FILE_MIN_BLANK_LENGTH = 4 + 4;
@@ -1294,14 +1298,17 @@ public class CommitLog {
         public AppendMessageResult doAppend(final long fileFromOffset, final ByteBuffer byteBuffer, final int maxBlank,
                                             final MessageExtBrokerInner msgInner, PutMessageContext putMessageContext) {
             // STORETIMESTAMP + STOREHOSTADDRESS + OFFSET <br>
-
             // PHY OFFSET
             long wroteOffset = fileFromOffset + byteBuffer.position();
-
+            //
             Supplier<String> msgIdSupplier = () -> {
+                //
                 int sysflag = msgInner.getSysFlag();
+                //
                 int msgIdLen = (sysflag & MessageSysFlag.STOREHOSTADDRESS_V6_FLAG) == 0 ? 4 + 4 + 8 : 16 + 4 + 8;
+                //
                 ByteBuffer msgIdBuffer = ByteBuffer.allocate(msgIdLen);
+                //
                 MessageExt.socketAddress2ByteBuffer(msgInner.getStoreHost(), msgIdBuffer);
                 msgIdBuffer.clear();//because socketAddress2ByteBuffer flip the buffer
                 msgIdBuffer.putLong(msgIdLen - 8, wroteOffset);
@@ -1350,7 +1357,7 @@ public class CommitLog {
                         msgIdSupplier, msgInner.getStoreTimestamp(),
                         queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
             }
-
+            //为什么?看一下消息的结构就知道了.
             int pos = 4 + 4 + 4 + 4 + 4;
             // 6 QUEUEOFFSET
             preEncodeBuffer.putLong(pos, queueOffset);

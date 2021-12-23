@@ -46,6 +46,7 @@ import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
@@ -479,7 +480,7 @@ public class DefaultMessageStoreTest {
     }
 
     @Test
-    public void testPullSize() throws Exception {
+    public void testPullSize() {
         String topic = "pullSizeTopic";
 
         for (int i = 0; i < 32; i++) {
@@ -507,7 +508,7 @@ public class DefaultMessageStoreTest {
 
     }
 
-    @Test
+    @Test //
     public void testRecover() throws Exception {
         String topic = "recoverTopic";
         MessageBody = StoreMessage.getBytes();
@@ -530,8 +531,8 @@ public class DefaultMessageStoreTest {
         boolean load = messageStore.load();
         assertTrue(load);
         messageStore.start();
-        assertTrue(maxPhyOffset == messageStore.getMaxPhyOffset());
-        assertTrue(maxCqOffset == messageStore.getMaxOffsetInQueue(topic, 0));
+        assertEquals(maxPhyOffset, messageStore.getMaxPhyOffset());
+        assertEquals(maxCqOffset, messageStore.getMaxOffsetInQueue(topic, 0));
 
         //2.damage commitlog and reboot normal
         for (int i = 0; i < 100; i++) {
@@ -560,8 +561,8 @@ public class DefaultMessageStoreTest {
         load = messageStore.load();
         assertTrue(load);
         messageStore.start();
-        assertTrue(secondLastPhyOffset == messageStore.getMaxPhyOffset());
-        assertTrue(secondLastCqOffset == messageStore.getMaxOffsetInQueue(topic, 0));
+        assertEquals(secondLastPhyOffset, messageStore.getMaxPhyOffset());
+        assertEquals(secondLastCqOffset, messageStore.getMaxOffsetInQueue(topic, 0));
 
         //3.damage commitlog and reboot abnormal
         for (int i = 0; i < 100; i++) {
@@ -593,8 +594,8 @@ public class DefaultMessageStoreTest {
         load = messageStore.load();
         assertTrue(load);
         messageStore.start();
-        assertTrue(secondLastPhyOffset == messageStore.getMaxPhyOffset());
-        assertTrue(secondLastCqOffset == messageStore.getMaxOffsetInQueue(topic, 0));
+        assertEquals(secondLastPhyOffset, messageStore.getMaxPhyOffset());
+        assertEquals(secondLastCqOffset, messageStore.getMaxOffsetInQueue(topic, 0));
 
         //message write again
         for (int i = 0; i < 100; i++) {

@@ -319,7 +319,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             executorThis = this.publicExecutor;
         }
 
-        Pair<NettyRequestProcessor, ExecutorService> pair = new Pair<NettyRequestProcessor, ExecutorService>(processor, executorThis);
+        Pair<NettyRequestProcessor, ExecutorService> pair = new Pair<>(processor, executorThis);
         this.processorTable.put(requestCode, pair);
     }
 

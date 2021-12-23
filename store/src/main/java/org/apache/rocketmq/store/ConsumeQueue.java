@@ -59,18 +59,17 @@ public class ConsumeQueue {
         this.storePath = storePath;
         this.mappedFileSize = mappedFileSize;
         this.defaultMessageStore = defaultMessageStore;
-
         this.topic = topic;
         this.queueId = queueId;
-
+        //
         String queueDir = this.storePath
                 + File.separator + topic
                 + File.separator + queueId;
-
+        //
         this.mappedFileQueue = new MappedFileQueue(queueDir, mappedFileSize, null);
-
+        //
         this.byteBufferIndex = ByteBuffer.allocate(CQ_STORE_UNIT_SIZE);
-
+        //
         if (defaultMessageStore.getMessageStoreConfig().isEnableConsumeQueueExt()) {
             this.consumeQueueExt = new ConsumeQueueExt(
                     topic,

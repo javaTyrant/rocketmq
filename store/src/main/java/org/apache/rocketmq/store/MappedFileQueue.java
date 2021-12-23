@@ -163,7 +163,9 @@ public class MappedFileQueue {
             }
             try {
                 MappedFile mappedFile = new MappedFile(file.getPath(), mappedFileSize);
+                //Broker启动的时候会加载commitlog,更新写索引的位置.
                 mappedFile.setWrotePosition(this.mappedFileSize);
+                log.info("写的位置是" + this.mappedFileSize);
                 mappedFile.setFlushedPosition(this.mappedFileSize);
                 mappedFile.setCommittedPosition(this.mappedFileSize);
                 this.mappedFiles.add(mappedFile);

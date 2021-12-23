@@ -54,7 +54,7 @@ public class MappedFile extends ReferenceResource {
     private static final AtomicLong TOTAL_MAPPED_VIRTUAL_MEMORY = new AtomicLong(0);
     //映射的总文件数
     private static final AtomicInteger TOTAL_MAPPED_FILES = new AtomicInteger(0);
-    //当前写的位置
+    //当前写的位置.
     protected final AtomicInteger wrotePosition = new AtomicInteger(0);
     //当前提交的位置
     protected final AtomicInteger committedPosition = new AtomicInteger(0);
@@ -246,6 +246,7 @@ public class MappedFile extends ReferenceResource {
         assert cb != null;
         //写位置
         int currentPos = this.wrotePosition.get();
+        log.info("写的位置是1" + currentPos);
         //
         if (currentPos < this.fileSize) {
             ByteBuffer byteBuffer = writeBuffer != null ? writeBuffer.slice() : this.mappedByteBuffer.slice();
@@ -290,6 +291,7 @@ public class MappedFile extends ReferenceResource {
             }
             //写完后的位置.
             this.wrotePosition.addAndGet(data.length);
+            log.info("写完后位置是{}" + this.wrotePosition.get());
             //
             return true;
         }

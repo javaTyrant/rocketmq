@@ -187,7 +187,9 @@ public abstract class NettyRemotingAbstract {
      * @param cmd request command.
      */
     public void processRequestCommand(final ChannelHandlerContext ctx, final RemotingCommand cmd) {
+        //
         final Pair<NettyRequestProcessor, ExecutorService> matched = this.processorTable.get(cmd.getCode());
+        //
         final Pair<NettyRequestProcessor, ExecutorService> pair = null == matched ? this.defaultRequestProcessor : matched;
         final int opaque = cmd.getOpaque();
 
@@ -198,6 +200,7 @@ public abstract class NettyRemotingAbstract {
                     String remoteAddr = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
                     //
                     doBeforeRpcHooks(remoteAddr, cmd);
+                    //
                     final RemotingResponseCallback callback = response -> {
                         doAfterRpcHooks(remoteAddr, cmd, response);
                         if (!cmd.isOnewayRPC()) {
@@ -216,6 +219,7 @@ public abstract class NettyRemotingAbstract {
                     };
                     if (pair.getObject1() instanceof AsyncNettyRequestProcessor) {
                         AsyncNettyRequestProcessor processor = (AsyncNettyRequestProcessor) pair.getObject1();
+                        //异步处理结果.
                         processor.asyncProcessRequest(ctx, cmd, callback);
                     } else {
                         NettyRequestProcessor processor = pair.getObject1();
@@ -300,14 +304,19 @@ public abstract class NettyRemotingAbstract {
 
     /**
      * Execute callback in callback executor. If callback executor is null, run directly in current thread
+     * 执行回调.
      */
     private void executeInvokeCallback(final ResponseFuture responseFuture) {
+        //
         boolean runInThisThread = false;
+        //
         ExecutorService executor = this.getCallbackExecutor();
         if (executor != null) {
             try {
+                //
                 executor.submit(() -> {
                     try {
+                        //
                         responseFuture.executeInvokeCallback();
                     } catch (Throwable e) {
                         log.warn("execute callback in executor exception, and callback throw", e);

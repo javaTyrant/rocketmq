@@ -441,19 +441,19 @@ public class DefaultMessageStore implements MessageStore {
         long beginTime = this.getSystemClock().now();
         //委托给CommitLog的put方法.
         CompletableFuture<PutMessageResult> putResultFuture = this.commitLog.asyncPutMessage(msg);
-
+        //然后再接受:
         putResultFuture.thenAccept((result) -> {
             long elapsedTime = this.getSystemClock().now() - beginTime;
             if (elapsedTime > 500) {
                 log.warn("putMessage not in lock elapsed time(ms)={}, bodyLength={}", elapsedTime, msg.getBody().length);
             }
             this.storeStatsService.setPutMessageEntireTimeMax(elapsedTime);
-
+            //
             if (null == result || !result.isOk()) {
                 this.storeStatsService.getPutMessageFailedTimes().add(1);
             }
         });
-
+        //
         return putResultFuture;
     }
 
@@ -492,6 +492,7 @@ public class DefaultMessageStore implements MessageStore {
     @Override
     public PutMessageResult putMessage(MessageExtBrokerInner msg) {
         try {
+            //
             return asyncPutMessage(msg).get();
         } catch (InterruptedException | ExecutionException e) {
             return new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, null);

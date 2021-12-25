@@ -223,6 +223,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
                         .childOption(ChannelOption.SO_RCVBUF, nettyServerConfig.getServerSocketRcvBufSize())
                         //
                         .localAddress(new InetSocketAddress(this.nettyServerConfig.getListenPort()))
+                        //
                         .childHandler(new ChannelInitializer<SocketChannel>() {
                             @Override
                             public void initChannel(SocketChannel ch) {
@@ -247,19 +248,20 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         if (nettyServerConfig.isServerPooledByteBufAllocatorEnable()) {
             childHandler.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         }
-
+        //
         try {
             ChannelFuture sync = this.serverBootstrap.bind().sync();
+            //
             InetSocketAddress addr = (InetSocketAddress) sync.channel().localAddress();
             this.port = addr.getPort();
         } catch (InterruptedException e1) {
             throw new RuntimeException("this.serverBootstrap.bind().sync() InterruptedException", e1);
         }
-
+        //
         if (this.channelEventListener != null) {
             this.nettyEventExecutor.start();
         }
-
+        //
         this.timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {

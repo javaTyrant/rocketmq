@@ -210,6 +210,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         this.offsetStore = offsetStore;
     }
 
+    //拉消息.
     public void pullMessage(final PullRequest pullRequest) {
         final ProcessQueue processQueue = pullRequest.getProcessQueue();
         if (processQueue.isDropped()) {
@@ -603,10 +604,8 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 //
                 this.rebalanceImpl.setmQClientFactory(this.mQClientFactory);
                 //长连接，主要用于从broker拉取消息并交由用户的Listener处理
-                this.pullAPIWrapper = new PullAPIWrapper(
-                        mQClientFactory,
-                        this.defaultMQPushConsumer.getConsumerGroup(), isUnitMode());
-                //初始化了pullAPIWrapper。
+                this.pullAPIWrapper = new PullAPIWrapper(mQClientFactory, this.defaultMQPushConsumer.getConsumerGroup(), isUnitMode());
+                //初始化了pullAPIWrapper。注册钩子,pull消息的时候会触发.
                 this.pullAPIWrapper.registerFilterMessageHook(filterMessageHookList);
                 //
                 if (this.defaultMQPushConsumer.getOffsetStore() != null) {

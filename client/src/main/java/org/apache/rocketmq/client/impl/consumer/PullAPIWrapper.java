@@ -50,17 +50,26 @@ import org.apache.rocketmq.common.sysflag.PullSysFlag;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
 public class PullAPIWrapper {
+    //
     private final InternalLogger log = ClientLogger.getLog();
+    //
     private final MQClientInstance mQClientFactory;
+    //
     private final String consumerGroup;
+    //
     private final boolean unitMode;
+    //
     private ConcurrentMap<MessageQueue, AtomicLong/* brokerId */> pullFromWhichNodeTable =
-        new ConcurrentHashMap<MessageQueue, AtomicLong>(32);
+            new ConcurrentHashMap<>(32);
+    //
     private volatile boolean connectBrokerByUser = false;
+    //
     private volatile long defaultBrokerId = MixAll.MASTER_ID;
+    //
     private Random random = new Random(System.currentTimeMillis());
-    private ArrayList<FilterMessageHook> filterMessageHookList = new ArrayList<FilterMessageHook>();
-
+    //
+    private ArrayList<FilterMessageHook> filterMessageHookList = new ArrayList<>();
+    //
     public PullAPIWrapper(MQClientInstance mQClientFactory, String consumerGroup, boolean unitMode) {
         this.mQClientFactory = mQClientFactory;
         this.consumerGroup = consumerGroup;
@@ -78,7 +87,7 @@ public class PullAPIWrapper {
 
             List<MessageExt> msgListFilterAgain = msgList;
             if (!subscriptionData.getTagsSet().isEmpty() && !subscriptionData.isClassFilterMode()) {
-                msgListFilterAgain = new ArrayList<MessageExt>(msgList.size());
+                msgListFilterAgain = new ArrayList<>(msgList.size());
                 for (MessageExt msg : msgList) {
                     if (msg.getTags() != null) {
                         if (subscriptionData.getTagsSet().contains(msg.getTags())) {

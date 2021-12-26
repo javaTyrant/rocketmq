@@ -20,15 +20,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Spin lock Implementation to put message, suggest using this with low race conditions
+ * 自旋锁的实现.
  */
 public class PutMessageSpinLock implements PutMessageLock {
     //true: Can lock, false : in lock.
-    private AtomicBoolean putMessageSpinLock = new AtomicBoolean(true);
+    private final AtomicBoolean putMessageSpinLock = new AtomicBoolean(true);
 
     @Override
     public void lock() {
+        //默认false.
         boolean flag;
         do {
+            //开始是true,然后flag变成false.然后一直do while循环.
             flag = this.putMessageSpinLock.compareAndSet(true, false);
         }
         while (!flag);
@@ -36,6 +39,7 @@ public class PutMessageSpinLock implements PutMessageLock {
 
     @Override
     public void unlock() {
+        //解锁.
         this.putMessageSpinLock.compareAndSet(false, true);
     }
 }

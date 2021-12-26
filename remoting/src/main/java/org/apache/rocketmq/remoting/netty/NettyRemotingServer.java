@@ -118,7 +118,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         }
 
         this.publicExecutor = Executors.newFixedThreadPool(publicThreadNums, new ThreadFactory() {
-            private AtomicInteger threadIndex = new AtomicInteger(0);
+            private final AtomicInteger threadIndex = new AtomicInteger(0);
 
             @Override
             public Thread newThread(Runnable r) {
@@ -128,7 +128,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
         if (useEpoll()) {
             this.eventLoopGroupBoss = new EpollEventLoopGroup(1, new ThreadFactory() {
-                private AtomicInteger threadIndex = new AtomicInteger(0);
+                private final AtomicInteger threadIndex = new AtomicInteger(0);
 
                 @Override
                 public Thread newThread(Runnable r) {
@@ -137,8 +137,8 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             });
 
             this.eventLoopGroupSelector = new EpollEventLoopGroup(nettyServerConfig.getServerSelectorThreads(), new ThreadFactory() {
-                private AtomicInteger threadIndex = new AtomicInteger(0);
-                private int threadTotal = nettyServerConfig.getServerSelectorThreads();
+                private final AtomicInteger threadIndex = new AtomicInteger(0);
+                private final int threadTotal = nettyServerConfig.getServerSelectorThreads();
 
                 @Override
                 public Thread newThread(Runnable r) {
@@ -147,7 +147,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             });
         } else {
             this.eventLoopGroupBoss = new NioEventLoopGroup(1, new ThreadFactory() {
-                private AtomicInteger threadIndex = new AtomicInteger(0);
+                private final AtomicInteger threadIndex = new AtomicInteger(0);
 
                 @Override
                 public Thread newThread(Runnable r) {
@@ -156,8 +156,8 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             });
 
             this.eventLoopGroupSelector = new NioEventLoopGroup(nettyServerConfig.getServerSelectorThreads(), new ThreadFactory() {
-                private AtomicInteger threadIndex = new AtomicInteger(0);
-                private int threadTotal = nettyServerConfig.getServerSelectorThreads();
+                private final AtomicInteger threadIndex = new AtomicInteger(0);
+                private final int threadTotal = nettyServerConfig.getServerSelectorThreads();
 
                 @Override
                 public Thread newThread(Runnable r) {
@@ -177,9 +177,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             try {
                 sslContext = TlsHelper.buildSslContext(false);
                 log.info("SSLContext created for server");
-            } catch (CertificateException e) {
-                log.error("Failed to create SSLContext for server", e);
-            } catch (IOException e) {
+            } catch (CertificateException | IOException e) {
                 log.error("Failed to create SSLContext for server", e);
             }
         }
@@ -193,35 +191,44 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
     @Override
     public void start() {
+        //
         this.defaultEventExecutorGroup = new DefaultEventExecutorGroup(
                 nettyServerConfig.getServerWorkerThreads(),
                 new ThreadFactory() {
-
-                    private AtomicInteger threadIndex = new AtomicInteger(0);
+                    private final AtomicInteger threadIndex = new AtomicInteger(0);
 
                     @Override
                     public Thread newThread(Runnable r) {
                         return new Thread(r, "NettyServerCodecThread_" + this.threadIndex.incrementAndGet());
                     }
                 });
-
+        //
         prepareSharableHandlers();
         //启动远程服务器,接收消息.
         ServerBootstrap childHandler =
                 this.serverBootstrap
                         .group(this.eventLoopGroupBoss, this.eventLoopGroupSelector)
                         .channel(useEpoll() ? EpollServerSocketChannel.class : NioServerSocketChannel.class)
+                        //
                         .option(ChannelOption.SO_BACKLOG, 1024)
+                        //
                         .option(ChannelOption.SO_REUSEADDR, true)
+                        //
                         .option(ChannelOption.SO_KEEPALIVE, false)
+                        //
                         .childOption(ChannelOption.TCP_NODELAY, true)
+                        //
                         .childOption(ChannelOption.SO_SNDBUF, nettyServerConfig.getServerSocketSndBufSize())
+                        //
                         .childOption(ChannelOption.SO_RCVBUF, nettyServerConfig.getServerSocketRcvBufSize())
+                        //
                         .localAddress(new InetSocketAddress(this.nettyServerConfig.getListenPort()))
+                        //
                         .childHandler(new ChannelInitializer<SocketChannel>() {
                             @Override
                             public void initChannel(SocketChannel ch) {
                                 ch.pipeline()
+                                        //自定义线程池.
                                         .addLast(defaultEventExecutorGroup, HANDSHAKE_HANDLER_NAME, handshakeHandler)
                                         .addLast(defaultEventExecutorGroup,
                                                 //加密
@@ -241,21 +248,21 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         if (nettyServerConfig.isServerPooledByteBufAllocatorEnable()) {
             childHandler.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         }
-
+        //
         try {
             ChannelFuture sync = this.serverBootstrap.bind().sync();
+            //
             InetSocketAddress addr = (InetSocketAddress) sync.channel().localAddress();
             this.port = addr.getPort();
         } catch (InterruptedException e1) {
             throw new RuntimeException("this.serverBootstrap.bind().sync() InterruptedException", e1);
         }
-
+        //
         if (this.channelEventListener != null) {
             this.nettyEventExecutor.start();
         }
-
+        //
         this.timer.scheduleAtFixedRate(new TimerTask() {
-
             @Override
             public void run() {
                 try {
@@ -312,13 +319,13 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             executorThis = this.publicExecutor;
         }
 
-        Pair<NettyRequestProcessor, ExecutorService> pair = new Pair<NettyRequestProcessor, ExecutorService>(processor, executorThis);
+        Pair<NettyRequestProcessor, ExecutorService> pair = new Pair<>(processor, executorThis);
         this.processorTable.put(requestCode, pair);
     }
 
     @Override
     public void registerDefaultProcessor(NettyRequestProcessor processor, ExecutorService executor) {
-        this.defaultRequestProcessor = new Pair<NettyRequestProcessor, ExecutorService>(processor, executor);
+        this.defaultRequestProcessor = new Pair<>(processor, executor);
     }
 
     @Override
@@ -379,7 +386,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         }
 
         @Override
-        protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
+        protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) {
 
             // mark the current position so that we can peek the first byte to determine if the content is starting with
             // TLS handshake
@@ -433,7 +440,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
     @ChannelHandler.Sharable
     class NettyServerHandler extends SimpleChannelInboundHandler<RemotingCommand> {
         @Override
-        protected void channelRead0(ChannelHandlerContext ctx, RemotingCommand msg) throws Exception {
+        protected void channelRead0(ChannelHandlerContext ctx, RemotingCommand msg) {
             //读到消息.
             processMessageReceived(ctx, msg);
         }
@@ -478,7 +485,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         }
 
         @Override
-        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
             if (evt instanceof IdleStateEvent) {
                 IdleStateEvent event = (IdleStateEvent) evt;
                 if (event.state().equals(IdleState.ALL_IDLE)) {
@@ -496,7 +503,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         }
 
         @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             final String remoteAddress = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
             log.warn("NETTY SERVER PIPELINE: exceptionCaught {}", remoteAddress);
             log.warn("NETTY SERVER PIPELINE: exceptionCaught exception.", cause);
@@ -504,7 +511,6 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             if (NettyRemotingServer.this.channelEventListener != null) {
                 NettyRemotingServer.this.putNettyEvent(new NettyEvent(NettyEventType.EXCEPTION, remoteAddress, ctx.channel()));
             }
-
             RemotingUtil.closeChannel(ctx.channel());
         }
     }

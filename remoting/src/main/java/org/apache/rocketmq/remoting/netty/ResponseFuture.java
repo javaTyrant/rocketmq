@@ -50,7 +50,9 @@ public class ResponseFuture {
 
     public void executeInvokeCallback() {
         if (invokeCallback != null) {
+            //cas
             if (this.executeCallbackOnlyOnce.compareAndSet(false, true)) {
+                //操作完成.
                 invokeCallback.operationComplete(this);
             }
         }

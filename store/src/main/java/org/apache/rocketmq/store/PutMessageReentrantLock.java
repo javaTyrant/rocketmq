@@ -22,7 +22,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * Exclusive lock implementation to put message
  */
 public class PutMessageReentrantLock implements PutMessageLock {
-    private ReentrantLock putMessageNormalLock = new ReentrantLock(); // NonfairSync
+    //可重入锁.
+    private final ReentrantLock putMessageNormalLock = new ReentrantLock(); // NonfairSync
 
     @Override
     public void lock() {

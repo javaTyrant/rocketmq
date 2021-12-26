@@ -827,7 +827,7 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner {
                     } else {
                         subscriptionData = FilterAPI.buildSubscriptionData(topic, SubscriptionData.SUB_ALL);
                     }
-
+                    //
                     PullResult pullResult = pull(messageQueue, subscriptionData, offset, defaultLitePullConsumer.getPullBatchSize());
                     if (this.isCancelled() || processQueue.isDropped()) {
                         return;

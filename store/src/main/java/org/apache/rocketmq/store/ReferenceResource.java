@@ -18,6 +18,7 @@ package org.apache.rocketmq.store;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+//引用资源,定义一些通用的方法.
 public abstract class ReferenceResource {
     //
     protected final AtomicLong refCount = new AtomicLong(1);

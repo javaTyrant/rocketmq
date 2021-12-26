@@ -32,7 +32,6 @@ import java.util.List;
 //IndexFile主要由一下三个部分组成: IndexHeader + HashSlot + IndexItem
 //HashSlot:默认包含500w个hash槽, 每个hash槽中存储的是最近一个hash条目的位置.
 //IndexItem:默认最多包含2000w个indexItem. 其组成如下所示:
-
 //Hash冲突解决方案:
 public class IndexFile {
     //

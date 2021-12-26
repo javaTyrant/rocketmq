@@ -35,12 +35,7 @@ public class PullMessageService extends ServiceThread {
     private final LinkedBlockingQueue<PullRequest> pullRequestQueue = new LinkedBlockingQueue<PullRequest>();
     private final MQClientInstance mQClientFactory;
     private final ScheduledExecutorService scheduledExecutorService = Executors
-            .newSingleThreadScheduledExecutor(new ThreadFactory() {
-                @Override
-                public Thread newThread(Runnable r) {
-                    return new Thread(r, "PullMessageServiceScheduledThread");
-                }
-            });
+            .newSingleThreadScheduledExecutor(r -> new Thread(r, "PullMessageServiceScheduledThread"));
 
     public PullMessageService(MQClientInstance mQClientFactory) {
         this.mQClientFactory = mQClientFactory;
@@ -75,7 +70,9 @@ public class PullMessageService extends ServiceThread {
         return scheduledExecutorService;
     }
 
+    //pull Message.
     private void pullMessage(final PullRequest pullRequest) {
+        //
         final MQConsumerInner consumer = this.mQClientFactory.selectConsumer(pullRequest.getConsumerGroup());
         if (consumer != null) {
             DefaultMQPushConsumerImpl impl = (DefaultMQPushConsumerImpl) consumer;

@@ -38,43 +38,53 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /**
  * Queue consumption snapshot
  */
-//ProcessQueue是MessageQueue在消息端的快照。PullMessageService从消息服务器默认每次拉取32跳消息，
+//ProcessQueue是MessageQueue在消息端的快照。PullMessageService从消息服务器默认每次拉取32条消息，
 //按消息的队列偏移量顺序存放在ProcessQueue中，PullMessageService然后将消息提交到消费者消费线程池，消息成功消费后从ProcessQueue中移除。
 public class ProcessQueue {
-    //
+    //30秒
     public final static long REBALANCE_LOCK_MAX_LIVE_TIME =
             Long.parseLong(System.getProperty("rocketmq.client.rebalance.lockMaxLiveTime", "30000"));
-    //
+    //20秒
     public final static long REBALANCE_LOCK_INTERVAL = Long.parseLong(System.getProperty("rocketmq.client.rebalance.lockInterval", "20000"));
-    //
+    //120秒
     private final static long PULL_MAX_IDLE_TIME = Long.parseLong(System.getProperty("rocketmq.client.pull.pullMaxIdleTime", "120000"));
     //
     private final InternalLogger log = ClientLogger.getLog();
     //
     private final ReadWriteLock treeMapLock = new ReentrantReadWriteLock();
-    //
+    // 用来保存拉取到的消息
     private final TreeMap<Long, MessageExt> msgTreeMap = new TreeMap<>();
-    //
+    // 当前保存的消息数，放进来的时候会加，移除的时候会减
     private final AtomicLong msgCount = new AtomicLong();
-    //
+    // 消息大小.
     private final AtomicLong msgSize = new AtomicLong();
-    //
+    //消费锁，主要在顺序消费和移除ProcessQueue的时候使用
     private final Lock consumeLock = new ReentrantLock();
     /**
      * A subset of msgTreeMap, will only be used when orderly consume
      */
     private final TreeMap<Long, MessageExt> consumingMsgOrderlyTreeMap = new TreeMap<>();
+    //
     private final AtomicLong tryUnlockTimes = new AtomicLong(0);
+    //
     private volatile long queueOffsetMax = 0L;
+    //
     private volatile boolean dropped = false;
+    //
     private volatile long lastPullTimestamp = System.currentTimeMillis();
+    //
     private volatile long lastConsumeTimestamp = System.currentTimeMillis();
+    //
     private volatile boolean locked = false;
+    //最后一次
     private volatile long lastLockTimestamp = System.currentTimeMillis();
+    //
     private volatile boolean consuming = false;
+    //
     private volatile long msgAccCnt = 0;
 
     public boolean isLockExpired() {
+        //
         return (System.currentTimeMillis() - this.lastLockTimestamp) > REBALANCE_LOCK_MAX_LIVE_TIME;
     }
 
@@ -90,7 +100,7 @@ public class ProcessQueue {
             return;
         }
 
-        int loop = msgTreeMap.size() < 16 ? msgTreeMap.size() : 16;
+        int loop = Math.min(msgTreeMap.size(), 16);
         for (int i = 0; i < loop; i++) {
             MessageExt msg = null;
             try {
@@ -110,7 +120,6 @@ public class ProcessQueue {
             }
 
             try {
-
                 pushConsumer.sendMessageBack(msg, 3);
                 log.info("send expire msg back. topic={}, msgId={}, storeHost={}, queueId={}, queueOffset={}", msg.getTopic(), msg.getMsgId(), msg.getStoreHost(), msg.getQueueId(), msg.getQueueOffset());
                 try {
@@ -138,14 +147,19 @@ public class ProcessQueue {
     public boolean putMessage(final List<MessageExt> msgs) {
         boolean dispatchToConsume = false;
         try {
+            //写锁
             this.treeMapLock.writeLock().lockInterruptibly();
+            //
             try {
                 int validMsgCnt = 0;
+                //
                 for (MessageExt msg : msgs) {
+                    //写锁保护.
                     MessageExt old = msgTreeMap.put(msg.getQueueOffset(), msg);
                     if (null == old) {
                         validMsgCnt++;
                         this.queueOffsetMax = msg.getQueueOffset();
+                        //数组的长度.
                         msgSize.addAndGet(msg.getBody().length);
                     }
                 }
@@ -207,7 +221,7 @@ public class ProcessQueue {
                         MessageExt prev = msgTreeMap.remove(msg.getQueueOffset());
                         if (prev != null) {
                             removedCnt--;
-                            msgSize.addAndGet(0 - msg.getBody().length);
+                            msgSize.addAndGet(-msg.getBody().length);
                         }
                     }
                     msgCount.addAndGet(removedCnt);
@@ -273,9 +287,9 @@ public class ProcessQueue {
             this.treeMapLock.writeLock().lockInterruptibly();
             try {
                 Long offset = this.consumingMsgOrderlyTreeMap.lastKey();
-                msgCount.addAndGet(0 - this.consumingMsgOrderlyTreeMap.size());
+                msgCount.addAndGet(-this.consumingMsgOrderlyTreeMap.size());
                 for (MessageExt msg : this.consumingMsgOrderlyTreeMap.values()) {
-                    msgSize.addAndGet(0 - msg.getBody().length);
+                    msgSize.addAndGet(-msg.getBody().length);
                 }
                 this.consumingMsgOrderlyTreeMap.clear();
                 if (offset != null) {
@@ -308,7 +322,7 @@ public class ProcessQueue {
     }
 
     public List<MessageExt> takeMessages(final int batchSize) {
-        List<MessageExt> result = new ArrayList<MessageExt>(batchSize);
+        List<MessageExt> result = new ArrayList<>(batchSize);
         final long now = System.currentTimeMillis();
         try {
             this.treeMapLock.writeLock().lockInterruptibly();

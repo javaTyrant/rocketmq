@@ -16,7 +16,6 @@
  */
 package org.apache.rocketmq.broker.processor;
 
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.FileRegion;
@@ -52,8 +51,10 @@ public class QueryMessageProcessor extends AsyncNettyRequestProcessor implements
     public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request)
             throws RemotingCommandException {
         switch (request.getCode()) {
+            //查询消息
             case RequestCode.QUERY_MESSAGE:
                 return this.queryMessage(ctx, request);
+            //根据id查询消息
             case RequestCode.VIEW_MESSAGE_BY_ID:
                 return this.viewMessageById(ctx, request);
             default:
@@ -126,31 +127,35 @@ public class QueryMessageProcessor extends AsyncNettyRequestProcessor implements
 
     public RemotingCommand viewMessageById(ChannelHandlerContext ctx, RemotingCommand request)
             throws RemotingCommandException {
+        //
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        //
         final ViewMessageRequestHeader requestHeader =
                 (ViewMessageRequestHeader) request.decodeCommandCustomHeader(ViewMessageRequestHeader.class);
-
+        //
         response.setOpaque(request.getOpaque());
-
+        //从Broker获取一条消息.
         final SelectMappedBufferResult selectMappedBufferResult =
                 this.brokerController.getMessageStore().selectOneMessageByOffset(requestHeader.getOffset());
+        //
         if (selectMappedBufferResult != null) {
             response.setCode(ResponseCode.SUCCESS);
             response.setRemark(null);
 
             try {
+                //FileRegion:netty
                 FileRegion fileRegion =
                         new OneMessageTransfer(response.encodeHeader(selectMappedBufferResult.getSize()),
                                 selectMappedBufferResult);
-                ctx.channel().writeAndFlush(fileRegion).addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        selectMappedBufferResult.release();
-                        if (!future.isSuccess()) {
-                            log.error("Transfer one message from page cache failed, ", future.cause());
-                        }
-                    }
-                });
+                ctx.channel()
+                        //写给客户端.
+                        .writeAndFlush(fileRegion)
+                        .addListener((ChannelFutureListener) future -> {
+                            selectMappedBufferResult.release();
+                            if (!future.isSuccess()) {
+                                log.error("Transfer one message from page cache failed, ", future.cause());
+                            }
+                        });
             } catch (Throwable e) {
                 log.error("", e);
                 selectMappedBufferResult.release();

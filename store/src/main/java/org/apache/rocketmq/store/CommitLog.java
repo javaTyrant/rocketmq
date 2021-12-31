@@ -181,11 +181,17 @@ public class CommitLog {
     }
 
     public SelectMappedBufferResult getData(final long offset, final boolean returnFirstOnNotFound) {
+        //映射文件的大小,默认一个G.
         int mappedFileSize = this.defaultMessageStore.getMessageStoreConfig().getMappedFileSizeCommitLog();
+        //获取消息在哪个MappedFile.
         MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset, returnFirstOnNotFound);
+        //
         if (mappedFile != null) {
+            //
             int pos = (int) (offset % mappedFileSize);
+            //
             SelectMappedBufferResult result = mappedFile.selectMappedBuffer(pos);
+            //
             return result;
         }
 

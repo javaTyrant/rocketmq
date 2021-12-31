@@ -260,7 +260,7 @@ public class MQAdminImpl {
     public MessageExt viewMessage(
         String msgId) throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
 
-        MessageId messageId = null;
+        MessageId messageId;
         try {
             messageId = MessageDecoder.decodeMessageId(msgId);
         } catch (Exception e) {

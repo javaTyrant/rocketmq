@@ -191,25 +191,33 @@ public class MappedFileQueue {
         return 0;
     }
 
+    //获取最后一个映射文件.
     public MappedFile getLastMappedFile(final long startOffset, boolean needCreate) {
         long createOffset = -1;
         MappedFile mappedFileLast = getLastMappedFile();
+        //
         if (mappedFileLast == null) {
             createOffset = startOffset - (startOffset % this.mappedFileSize);
         }
+        //
         if (mappedFileLast != null && mappedFileLast.isFull()) {
             createOffset = mappedFileLast.getFileFromOffset() + this.mappedFileSize;
         }
+        //
         if (createOffset != -1 && needCreate) {
             return tryCreateMappedFile(createOffset);
         }
         return mappedFileLast;
     }
 
+    //需要创建MappedFile.
     protected MappedFile tryCreateMappedFile(long createOffset) {
+        //
         String nextFilePath = this.storePath + File.separator + UtilAll.offset2FileName(createOffset);
+        //
         String nextNextFilePath = this.storePath + File.separator + UtilAll.offset2FileName(createOffset
                 + this.mappedFileSize);
+        //
         return doCreateMappedFile(nextFilePath, nextNextFilePath);
     }
 
@@ -414,8 +422,10 @@ public class MappedFileQueue {
         if (mappedFile != null) {
             long tmpTimeStamp = mappedFile.getStoreTimestamp();
             int offset = mappedFile.flush(flushLeastPages);
+            //
             long where = mappedFile.getFileFromOffset() + offset;
             result = where == this.flushedWhere;
+            //变成了where.
             this.flushedWhere = where;
             if (0 == flushLeastPages) {
                 this.storeTimestamp = tmpTimeStamp;

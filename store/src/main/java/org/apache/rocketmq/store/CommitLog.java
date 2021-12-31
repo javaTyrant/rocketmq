@@ -98,9 +98,11 @@ public class CommitLog {
 
         this.defaultMessageStore = defaultMessageStore;
 
+        //同步
         if (FlushDiskType.SYNC_FLUSH == defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
             this.flushCommitLogService = new GroupCommitService();
         } else {
+            //异步
             this.flushCommitLogService = new FlushRealTimeService();
         }
 
@@ -126,6 +128,7 @@ public class CommitLog {
         log.info("load commit log " + (result ? "OK" : "Failed"));
         return result;
     }
+    //
 
     public void start() {
         this.flushCommitLogService.start();
@@ -590,6 +593,7 @@ public class CommitLog {
         return keyBuilder.toString();
     }
 
+    //
     public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
         // Set the storage time
         msg.setStoreTimestamp(System.currentTimeMillis());
@@ -665,12 +669,12 @@ public class CommitLog {
                 beginTimeInLock = 0;
                 return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null));
             }
-            //
+            //追加消息.
             result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
             switch (result.getStatus()) {
                 case PUT_OK:
                     break;
-                case END_OF_FILE:
+                case END_OF_FILE://
                     unlockMappedFile = mappedFile;
                     // Create a new file, re-write the message
                     mappedFile = this.mappedFileQueue.getLastMappedFile(0);
@@ -693,7 +697,7 @@ public class CommitLog {
                     beginTimeInLock = 0;
                     return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
             }
-
+            //
             elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
             beginTimeInLock = 0;
         } finally {
@@ -851,14 +855,18 @@ public class CommitLog {
 
     }
 
+    //提交刷盘请求.
     public CompletableFuture<PutMessageStatus> submitFlushRequest(AppendMessageResult result, MessageExt messageExt) {
         // Synchronization flush
         if (FlushDiskType.SYNC_FLUSH == this.defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
+            //
             final GroupCommitService service = (GroupCommitService) this.flushCommitLogService;
             if (messageExt.isWaitStoreMsgOK()) {
                 GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes(),
                         this.defaultMessageStore.getMessageStoreConfig().getSyncFlushTimeout());
+                //
                 service.putRequest(request);
+                //返回future.
                 return request.future();
             } else {
                 service.wakeup();
@@ -1064,17 +1072,20 @@ public class CommitLog {
         }
     }
 
+    //
     class FlushRealTimeService extends FlushCommitLogService {
         private long lastFlushTimestamp = 0;
         private long printTimes = 0;
 
         public void run() {
+            //
             CommitLog.log.info(this.getServiceName() + " service started");
-
+            //
             while (!this.isStopped()) {
                 boolean flushCommitLogTimed = CommitLog.this.defaultMessageStore.getMessageStoreConfig().isFlushCommitLogTimed();
-
+                //
                 int interval = CommitLog.this.defaultMessageStore.getMessageStoreConfig().getFlushIntervalCommitLog();
+                //
                 int flushPhysicQueueLeastPages = CommitLog.this.defaultMessageStore.getMessageStoreConfig().getFlushCommitLogLeastPages();
 
                 int flushPhysicQueueThoroughInterval =
@@ -1100,7 +1111,7 @@ public class CommitLog {
                     if (printFlushProgress) {
                         this.printFlushProgress();
                     }
-
+                    //
                     long begin = System.currentTimeMillis();
                     CommitLog.this.mappedFileQueue.flush(flushPhysicQueueLeastPages);
                     long storeTimestamp = CommitLog.this.mappedFileQueue.getStoreTimestamp();
@@ -1166,6 +1177,7 @@ public class CommitLog {
         }
 
         public void wakeupCustomer(final PutMessageStatus putMessageStatus) {
+            //
             this.flushOKFuture.complete(putMessageStatus);
         }
 
@@ -1183,22 +1195,26 @@ public class CommitLog {
         private volatile LinkedList<GroupCommitRequest> requestsWrite = new LinkedList<>();
         //读请求
         private volatile LinkedList<GroupCommitRequest> requestsRead = new LinkedList<>();
-        //锁.
+        //锁.为什么要用自旋锁呢?
         private final PutMessageSpinLock lock = new PutMessageSpinLock();
 
         public synchronized void putRequest(final GroupCommitRequest request) {
             lock.lock();
             try {
+                //写请求添加
                 this.requestsWrite.add(request);
             } finally {
                 lock.unlock();
             }
+            //
             this.wakeup();
         }
 
+        //交换请求.why?
         private void swapRequests() {
             lock.lock();
             try {
+                //读写请求交换.
                 LinkedList<GroupCommitRequest> tmp = this.requestsWrite;
                 this.requestsWrite = this.requestsRead;
                 this.requestsRead = tmp;
@@ -1208,38 +1224,44 @@ public class CommitLog {
         }
 
         private void doCommit() {
+            //读不为空.
             if (!this.requestsRead.isEmpty()) {
                 for (GroupCommitRequest req : this.requestsRead) {
                     // There may be a message in the next file, so a maximum of
-                    // two times the flush
+                    // two times the flush. 消息可能在下一个文件中,所以最多尝试两次刷盘.
                     boolean flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
+                    //为什么呢?多试一次?
                     for (int i = 0; i < 2 && !flushOK; i++) {
+                        //盲猜会改变flushedWhere的值. mappedFile.getFileFromOffset() + offset;
                         CommitLog.this.mappedFileQueue.flush(0);
                         flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
                     }
-
+                    //
                     req.wakeupCustomer(flushOK ? PutMessageStatus.PUT_OK : PutMessageStatus.FLUSH_DISK_TIMEOUT);
                 }
-
+                //
                 long storeTimestamp = CommitLog.this.mappedFileQueue.getStoreTimestamp();
                 if (storeTimestamp > 0) {
                     CommitLog.this.defaultMessageStore.getStoreCheckpoint().setPhysicMsgTimestamp(storeTimestamp);
                 }
-
+                //读队列设置成空.
                 this.requestsRead = new LinkedList<>();
-            } else {
+            } else {//读队列为空.
                 // Because of individual messages is set to not sync flush, it
                 // will come to this process
                 CommitLog.this.mappedFileQueue.flush(0);
             }
         }
 
+        //
         public void run() {
             CommitLog.log.info(this.getServiceName() + " service started");
-
+            //死循环执行。
             while (!this.isStopped()) {
                 try {
+                    //休眠.最后执行onWaitEnd,执行读写交换.
                     this.waitForRunning(10);
+                    //然后执行commit
                     this.doCommit();
                 } catch (Exception e) {
                     CommitLog.log.warn(this.getServiceName() + " service has exception. ", e);
@@ -1371,15 +1393,15 @@ public class CommitLog {
             pos += 8 + 4 + 8 + ipLen;
             // refresh store time stamp in lock
             preEncodeBuffer.putLong(pos, msgInner.getStoreTimestamp());
-
-
+            //
             final long beginTimeMills = CommitLog.this.defaultMessageStore.now();
-            // Write messages to the queue buffer
+            // Write messages to the queue buffer.放入byteBuffer.
             byteBuffer.put(preEncodeBuffer);
             msgInner.setEncodedBuff(null);
+            //构造一个结果.
             AppendMessageResult result = new AppendMessageResult(AppendMessageStatus.PUT_OK, wroteOffset, msgLen, msgIdSupplier,
                     msgInner.getStoreTimestamp(), queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
-
+            //
             switch (tranType) {
                 case MessageSysFlag.TRANSACTION_PREPARED_TYPE:
                 case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:

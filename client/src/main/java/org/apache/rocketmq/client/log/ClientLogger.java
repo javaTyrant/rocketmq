@@ -47,7 +47,9 @@ public class ClientLogger {
     //private static Appender rocketmqClientAppender = null;
 
     static {
+        //是否使用slf4
         CLIENT_USE_SLF4J = Boolean.parseBoolean(System.getProperty(CLIENT_LOG_USESLF4J, "false"));
+        //j
         if (!CLIENT_USE_SLF4J) {
             InternalLoggerFactory.setCurrentLoggerType(InnerLoggerFactory.LOGGER_INNER);
             CLIENT_LOGGER = createLogger(LoggerName.CLIENT_LOGGER_NAME);

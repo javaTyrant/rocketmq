@@ -16,7 +16,6 @@
  */
 package org.apache.rocketmq.broker.processor;
 
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.FileRegion;
@@ -25,13 +24,13 @@ import org.apache.rocketmq.broker.pagecache.OneMessageTransfer;
 import org.apache.rocketmq.broker.pagecache.QueryMessageTransfer;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.constant.LoggerName;
-import org.apache.rocketmq.logging.InternalLogger;
-import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.common.protocol.RequestCode;
 import org.apache.rocketmq.common.protocol.ResponseCode;
 import org.apache.rocketmq.common.protocol.header.QueryMessageRequestHeader;
 import org.apache.rocketmq.common.protocol.header.QueryMessageResponseHeader;
 import org.apache.rocketmq.common.protocol.header.ViewMessageRequestHeader;
+import org.apache.rocketmq.logging.InternalLogger;
+import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.netty.AsyncNettyRequestProcessor;
 import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
@@ -52,8 +51,10 @@ public class QueryMessageProcessor extends AsyncNettyRequestProcessor implements
     public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request)
             throws RemotingCommandException {
         switch (request.getCode()) {
+            //查询消息
             case RequestCode.QUERY_MESSAGE:
                 return this.queryMessage(ctx, request);
+            //根据id查询消息
             case RequestCode.VIEW_MESSAGE_BY_ID:
                 return this.viewMessageById(ctx, request);
             default:
@@ -68,6 +69,7 @@ public class QueryMessageProcessor extends AsyncNettyRequestProcessor implements
         return false;
     }
 
+    //查询消息
     public RemotingCommand queryMessage(ChannelHandlerContext ctx, RemotingCommand request)
             throws RemotingCommandException {
         final RemotingCommand response =
@@ -90,25 +92,26 @@ public class QueryMessageProcessor extends AsyncNettyRequestProcessor implements
                         requestHeader.getKey(), requestHeader.getMaxNum(), requestHeader.getBeginTimestamp(),
                         requestHeader.getEndTimestamp());
         assert queryMessageResult != null;
-        //
+
         responseHeader.setIndexLastUpdatePhyoffset(queryMessageResult.getIndexLastUpdatePhyoffset());
         responseHeader.setIndexLastUpdateTimestamp(queryMessageResult.getIndexLastUpdateTimestamp());
-        //
+
         if (queryMessageResult.getBufferTotalSize() > 0) {
             response.setCode(ResponseCode.SUCCESS);
             response.setRemark(null);
+
             try {
-                //
                 FileRegion fileRegion =
                         new QueryMessageTransfer(response.encodeHeader(queryMessageResult
                                 .getBufferTotalSize()), queryMessageResult);
-                //
-                ctx.channel().writeAndFlush(fileRegion).addListener((ChannelFutureListener) future -> {
-                    queryMessageResult.release();
-                    if (!future.isSuccess()) {
-                        log.error("transfer query message by page cache failed, ", future.cause());
-                    }
-                });
+                ctx.channel()
+                        .writeAndFlush(fileRegion)
+                        .addListener((ChannelFutureListener) future -> {
+                            queryMessageResult.release();
+                            if (!future.isSuccess()) {
+                                log.error("transfer query message by page cache failed, ", future.cause());
+                            }
+                        });
             } catch (Throwable e) {
                 log.error("", e);
                 queryMessageResult.release();
@@ -124,31 +127,35 @@ public class QueryMessageProcessor extends AsyncNettyRequestProcessor implements
 
     public RemotingCommand viewMessageById(ChannelHandlerContext ctx, RemotingCommand request)
             throws RemotingCommandException {
+        //
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        //解码
         final ViewMessageRequestHeader requestHeader =
                 (ViewMessageRequestHeader) request.decodeCommandCustomHeader(ViewMessageRequestHeader.class);
-
+        //
         response.setOpaque(request.getOpaque());
-
+        //从Broker获取一条消息.
         final SelectMappedBufferResult selectMappedBufferResult =
                 this.brokerController.getMessageStore().selectOneMessageByOffset(requestHeader.getOffset());
+        //
         if (selectMappedBufferResult != null) {
             response.setCode(ResponseCode.SUCCESS);
             response.setRemark(null);
 
             try {
+                //FileRegion:netty
                 FileRegion fileRegion =
                         new OneMessageTransfer(response.encodeHeader(selectMappedBufferResult.getSize()),
                                 selectMappedBufferResult);
-                ctx.channel().writeAndFlush(fileRegion).addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        selectMappedBufferResult.release();
-                        if (!future.isSuccess()) {
-                            log.error("Transfer one message from page cache failed, ", future.cause());
-                        }
-                    }
-                });
+                ctx.channel()
+                        //写给客户端.
+                        .writeAndFlush(fileRegion)
+                        .addListener((ChannelFutureListener) future -> {
+                            selectMappedBufferResult.release();
+                            if (!future.isSuccess()) {
+                                log.error("Transfer one message from page cache failed, ", future.cause());
+                            }
+                        });
             } catch (Throwable e) {
                 log.error("", e);
                 selectMappedBufferResult.release();

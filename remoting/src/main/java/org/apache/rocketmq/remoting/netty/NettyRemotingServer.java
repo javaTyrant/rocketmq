@@ -318,7 +318,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         if (null == executor) {
             executorThis = this.publicExecutor;
         }
-
+        //就是一个Pair.保存了,processor和执行器的关系,然后把pair放入processorTable里.
         Pair<NettyRequestProcessor, ExecutorService> pair = new Pair<>(processor, executorThis);
         this.processorTable.put(requestCode, pair);
     }

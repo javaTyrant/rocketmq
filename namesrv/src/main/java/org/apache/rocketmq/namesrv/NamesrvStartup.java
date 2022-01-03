@@ -112,7 +112,8 @@ public class NamesrvStartup {
 
         MixAll.properties2Object(ServerUtil.commandLine2Properties(commandLine), namesrvConfig);
         //自己设置.
-        namesrvConfig.setRocketmqHome("D:\\IdeaProjects\\rocketmq\\distribution");
+        //namesrvConfig.setRocketmqHome("D:\\IdeaProjects\\rocketmq\\distribution");
+        namesrvConfig.setRocketmqHome("/Users/lumac/work/rocketmq/distribution");
         if (null == namesrvConfig.getRocketmqHome()) {
             System.out.printf("Please set the %s variable in your environment to match the location of the RocketMQ installation%n", MixAll.ROCKETMQ_HOME_ENV);
             System.exit(-2);
@@ -122,6 +123,7 @@ public class NamesrvStartup {
         JoranConfigurator configurator = new JoranConfigurator();
         configurator.setContext(lc);
         lc.reset();
+        //configurator.doConfigure(namesrvConfig.getRocketmqHome() + "/conf/logback_namesrv.xml");
         configurator.doConfigure(namesrvConfig.getRocketmqHome() + "/conf/logback_namesrv.xml");
 
         log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);

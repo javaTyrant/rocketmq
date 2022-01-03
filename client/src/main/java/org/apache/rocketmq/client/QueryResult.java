@@ -20,7 +20,9 @@ import java.util.List;
 import org.apache.rocketmq.common.message.MessageExt;
 
 public class QueryResult {
+    //
     private final long indexLastUpdateTimestamp;
+    //
     private final List<MessageExt> messageList;
 
     public QueryResult(long indexLastUpdateTimestamp, List<MessageExt> messageList) {

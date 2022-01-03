@@ -17,9 +17,11 @@
 
 package org.apache.rocketmq.common;
 
-import static org.junit.Assert.assertEquals;
-
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class ServiceThreadTest {
 
@@ -41,35 +43,37 @@ public class ServiceThreadTest {
     public void testMakeStop() {
         ServiceThread testServiceThread = startTestServiceThread();
         testServiceThread.makeStop();
-        assertEquals(true, testServiceThread.isStopped());
+        assertTrue(testServiceThread.isStopped());
     }
 
     @Test
     public void testWakeup() {
         ServiceThread testServiceThread = startTestServiceThread();
         testServiceThread.wakeup();
-        assertEquals(true, testServiceThread.hasNotified.get());
+        assertTrue(testServiceThread.hasNotified.get());
         assertEquals(0, testServiceThread.waitPoint.getCount());
     }
 
     @Test
     public void testWaitForRunning() {
         ServiceThread testServiceThread = startTestServiceThread();
-        // test waitForRunning
+        // test waitForRunning 等一秒执行.
         testServiceThread.waitForRunning(1000);
-        assertEquals(false, testServiceThread.hasNotified.get());
+        //true.
+        assertFalse(testServiceThread.hasNotified.get());
+        //
         assertEquals(1, testServiceThread.waitPoint.getCount());
         // test wake up
         testServiceThread.wakeup();
-        assertEquals(true, testServiceThread.hasNotified.get());
+        assertTrue(testServiceThread.hasNotified.get());
         assertEquals(0, testServiceThread.waitPoint.getCount());
         // repeat waitForRunning
         testServiceThread.waitForRunning(1000);
-        assertEquals(false, testServiceThread.hasNotified.get());
+        assertFalse(testServiceThread.hasNotified.get());
         assertEquals(0, testServiceThread.waitPoint.getCount());
         // repeat waitForRunning again
         testServiceThread.waitForRunning(1000);
-        assertEquals(false, testServiceThread.hasNotified.get());
+        assertFalse(testServiceThread.hasNotified.get());
         assertEquals(1, testServiceThread.waitPoint.getCount());
     }
 
@@ -79,13 +83,13 @@ public class ServiceThreadTest {
 
     private ServiceThread startTestServiceThread(boolean daemon) {
         ServiceThread testServiceThread = new ServiceThread() {
-
             @Override
             public void run() {
                 doNothing();
             }
 
-            private void doNothing() {}
+            private void doNothing() {
+            }
 
             @Override
             public String getServiceName() {
@@ -95,7 +99,7 @@ public class ServiceThreadTest {
         testServiceThread.setDaemon(daemon);
         // test start
         testServiceThread.start();
-        assertEquals(false, testServiceThread.isStopped());
+        assertFalse(testServiceThread.isStopped());
         return testServiceThread;
     }
 
@@ -112,8 +116,8 @@ public class ServiceThreadTest {
         } else {
             testServiceThread.shutdown();
         }
-        assertEquals(true, testServiceThread.isStopped());
-        assertEquals(true, testServiceThread.hasNotified.get());
+        assertTrue(testServiceThread.isStopped());
+        assertTrue(testServiceThread.hasNotified.get());
         assertEquals(0, testServiceThread.waitPoint.getCount());
     }
 
@@ -130,8 +134,8 @@ public class ServiceThreadTest {
         } else {
             testServiceThread.stop();
         }
-        assertEquals(true, testServiceThread.isStopped());
-        assertEquals(true, testServiceThread.hasNotified.get());
+        assertTrue(testServiceThread.isStopped());
+        assertTrue(testServiceThread.hasNotified.get());
         assertEquals(0, testServiceThread.waitPoint.getCount());
     }
 

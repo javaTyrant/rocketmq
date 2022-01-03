@@ -16,6 +16,12 @@
  */
 package org.apache.rocketmq.common;
 
+import org.apache.commons.validator.routines.InetAddressValidator;
+import org.apache.rocketmq.common.constant.LoggerName;
+import org.apache.rocketmq.logging.InternalLogger;
+import org.apache.rocketmq.logging.InternalLoggerFactory;
+import org.apache.rocketmq.remoting.common.RemotingHelper;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -38,12 +44,8 @@ import java.util.Map;
 import java.util.zip.CRC32;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
-import org.apache.commons.validator.routines.InetAddressValidator;
-import org.apache.rocketmq.common.constant.LoggerName;
-import org.apache.rocketmq.logging.InternalLogger;
-import org.apache.rocketmq.logging.InternalLoggerFactory;
-import org.apache.rocketmq.remoting.common.RemotingHelper;
 
+//
 public class UtilAll {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
 
@@ -119,8 +121,8 @@ public class UtilAll {
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(t);
         return String.format("%04d%02d%02d%02d%02d%02d%03d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1,
-            cal.get(Calendar.DAY_OF_MONTH), cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), cal.get(Calendar.SECOND),
-            cal.get(Calendar.MILLISECOND));
+                cal.get(Calendar.DAY_OF_MONTH), cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), cal.get(Calendar.SECOND),
+                cal.get(Calendar.MILLISECOND));
     }
 
     public static long computeNextMorningTimeMillis() {
@@ -175,25 +177,25 @@ public class UtilAll {
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(t);
         return String.format("%04d-%02d-%02d %02d:%02d:%02d,%03d",
-            cal.get(Calendar.YEAR),
-            cal.get(Calendar.MONTH) + 1,
-            cal.get(Calendar.DAY_OF_MONTH),
-            cal.get(Calendar.HOUR_OF_DAY),
-            cal.get(Calendar.MINUTE),
-            cal.get(Calendar.SECOND),
-            cal.get(Calendar.MILLISECOND));
+                cal.get(Calendar.YEAR),
+                cal.get(Calendar.MONTH) + 1,
+                cal.get(Calendar.DAY_OF_MONTH),
+                cal.get(Calendar.HOUR_OF_DAY),
+                cal.get(Calendar.MINUTE),
+                cal.get(Calendar.SECOND),
+                cal.get(Calendar.MILLISECOND));
     }
 
     public static String timeMillisToHumanString3(final long t) {
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(t);
         return String.format("%04d%02d%02d%02d%02d%02d",
-            cal.get(Calendar.YEAR),
-            cal.get(Calendar.MONTH) + 1,
-            cal.get(Calendar.DAY_OF_MONTH),
-            cal.get(Calendar.HOUR_OF_DAY),
-            cal.get(Calendar.MINUTE),
-            cal.get(Calendar.SECOND));
+                cal.get(Calendar.YEAR),
+                cal.get(Calendar.MONTH) + 1,
+                cal.get(Calendar.DAY_OF_MONTH),
+                cal.get(Calendar.HOUR_OF_DAY),
+                cal.get(Calendar.MINUTE),
+                cal.get(Calendar.SECOND));
     }
 
     public static boolean isPathExists(final String path) {
@@ -456,9 +458,9 @@ public class UtilAll {
 
     public static boolean isInternalV6IP(InetAddress inetAddr) {
         if (inetAddr.isAnyLocalAddress() // Wild card ipv6
-            || inetAddr.isLinkLocalAddress() // Single broadcast ipv6 address: fe80:xx:xx...
-            || inetAddr.isLoopbackAddress() //Loopback ipv6 address
-            || inetAddr.isSiteLocalAddress()) { // Site local ipv6 address: fec0:xx:xx...
+                || inetAddr.isLinkLocalAddress() // Single broadcast ipv6 address: fe80:xx:xx...
+                || inetAddr.isLoopbackAddress() //Loopback ipv6 address
+                || inetAddr.isSiteLocalAddress()) { // Site local ipv6 address: fec0:xx:xx...
             return true;
         }
         return false;
@@ -487,8 +489,8 @@ public class UtilAll {
             return null;
         }
         return new StringBuilder().append(ip[0] & 0xFF).append(".").append(
-            ip[1] & 0xFF).append(".").append(ip[2] & 0xFF)
-            .append(".").append(ip[3] & 0xFF).toString();
+                ip[1] & 0xFF).append(".").append(ip[2] & 0xFF)
+                .append(".").append(ip[3] & 0xFF).toString();
     }
 
     public static String ipToIPv6Str(byte[] ip) {

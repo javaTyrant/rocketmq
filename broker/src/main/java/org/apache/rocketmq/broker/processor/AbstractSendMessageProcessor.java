@@ -56,12 +56,17 @@ import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.store.MessageExtBrokerInner;
 
+//Processor的注册.
 public abstract class AbstractSendMessageProcessor extends AsyncNettyRequestProcessor implements NettyRequestProcessor {
+    //
     protected static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
-
+    //
     protected final static int DLQ_NUMS_PER_GROUP = 1;
+    //
     protected final BrokerController brokerController;
+    //
     protected final SocketAddress storeHost;
+    //
     private List<SendMessageHook> sendMessageHookList;
 
     public AbstractSendMessageProcessor(final BrokerController brokerController) {

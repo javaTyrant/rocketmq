@@ -23,6 +23,13 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+//作用:
+//1.当处于stopped 状态的时候，不执行任何任务
+//2.当不处于stopped状态的时候，用户调用waitForRunning()可以启动一段定时器，并阻塞一段时间，或者
+//3.使用wakeup()立即结束跑完当前的定时器，立即退出阻塞状态
 public abstract class ServiceThread implements Runnable {
     //
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
@@ -32,7 +39,7 @@ public abstract class ServiceThread implements Runnable {
     private Thread thread;
     //
     protected final CountDownLatch2 waitPoint = new CountDownLatch2(1);
-    //
+    //是否被通知.被通知啥呢?通知等待.
     protected volatile AtomicBoolean hasNotified = new AtomicBoolean(false);
     //
     protected volatile boolean stopped = false;
@@ -66,14 +73,18 @@ public abstract class ServiceThread implements Runnable {
         this.shutdown(false);
     }
 
+    //
     public void shutdown(final boolean interrupt) {
         log.info("Try to shutdown service thread:{} started:{} lastThread:{}", getServiceName(), started.get(), thread);
+        //CAS更新
         if (!started.compareAndSet(true, false)) {
             return;
         }
+        //
         this.stopped = true;
+        //
         log.info("shutdown thread " + this.getServiceName() + " interrupt " + interrupt);
-
+        //
         if (hasNotified.compareAndSet(false, true)) {
             waitPoint.countDown(); // notify
         }
@@ -84,9 +95,12 @@ public abstract class ServiceThread implements Runnable {
             }
 
             long beginTime = System.currentTimeMillis();
+            //非守护线程.
             if (!this.thread.isDaemon()) {
+                //Waits at most millis milliseconds for this thread to die
                 this.thread.join(this.getJointime());
             }
+            //
             long elapsedTime = System.currentTimeMillis() - beginTime;
             log.info("join thread " + this.getServiceName() + " elapsed time(ms) " + elapsedTime + " "
                     + this.getJointime());
@@ -135,25 +149,30 @@ public abstract class ServiceThread implements Runnable {
         }
     }
 
+    //等待执行.
     protected void waitForRunning(long interval) {
+        //如果已经被通知了,改成false.然后执行
         if (hasNotified.compareAndSet(true, false)) {
             this.onWaitEnd();
             return;
         }
 
-        //entry to wait
+        //entry to wait.  reset.
         waitPoint.reset();
-
+        //
         try {
+            //
             waitPoint.await(interval, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             log.error("Interrupted", e);
         } finally {
+            //重置.
             hasNotified.set(false);
             this.onWaitEnd();
         }
     }
 
+    //等待结束.
     protected void onWaitEnd() {
     }
 
@@ -161,6 +180,7 @@ public abstract class ServiceThread implements Runnable {
         return stopped;
     }
 
+    @SuppressWarnings("unused")
     public boolean isDaemon() {
         return isDaemon;
     }

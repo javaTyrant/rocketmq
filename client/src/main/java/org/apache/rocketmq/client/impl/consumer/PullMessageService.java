@@ -31,16 +31,21 @@ import java.util.concurrent.TimeUnit;
 //从上文可以看到，一个进程内只存在一个MQClientInstance（自己设置InstanceName除外），
 //从MQClientInstance的启动流程可以看出，MQClientInstance使用一个单独的线程PullMessageService来负责消息的拉取。
 public class PullMessageService extends ServiceThread {
+    //
     private final InternalLogger log = ClientLogger.getLog();
+    //
     private final LinkedBlockingQueue<PullRequest> pullRequestQueue = new LinkedBlockingQueue<PullRequest>();
+    //
     private final MQClientInstance mQClientFactory;
+    //
     private final ScheduledExecutorService scheduledExecutorService = Executors
             .newSingleThreadScheduledExecutor(r -> new Thread(r, "PullMessageServiceScheduledThread"));
-
+    //
     public PullMessageService(MQClientInstance mQClientFactory) {
         this.mQClientFactory = mQClientFactory;
     }
 
+    //稍后执行
     public void executePullRequestLater(final PullRequest pullRequest, final long timeDelay) {
         if (!isStopped()) {
             this.scheduledExecutorService
@@ -49,7 +54,7 @@ public class PullMessageService extends ServiceThread {
             log.warn("PullMessageServiceScheduledThread has shutdown");
         }
     }
-
+    //立马执行
     public void executePullRequestImmediately(final PullRequest pullRequest) {
         try {
             this.pullRequestQueue.put(pullRequest);
@@ -57,7 +62,7 @@ public class PullMessageService extends ServiceThread {
             log.error("executePullRequestImmediately pullRequestQueue.put", e);
         }
     }
-
+    //
     public void executeTaskLater(final Runnable r, final long timeDelay) {
         if (!isStopped()) {
             this.scheduledExecutorService.schedule(r, timeDelay, TimeUnit.MILLISECONDS);

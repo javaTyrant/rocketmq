@@ -945,6 +945,7 @@ public class DefaultMessageStore implements MessageStore {
         long lastQueryMsgTime = end;
 
         for (int i = 0; i < 3; i++) {
+            //获取index的索引.offset.
             QueryOffsetResult queryOffsetResult = this.indexService.queryOffset(topic, key, maxNum, begin, lastQueryMsgTime);
             if (queryOffsetResult.getPhyOffsets().isEmpty()) {
                 break;
@@ -977,6 +978,7 @@ public class DefaultMessageStore implements MessageStore {
 //                    }
 
                     if (match) {
+                        //
                         SelectMappedBufferResult result = this.commitLog.getData(offset, false);
                         if (result != null) {
                             int size = result.getByteBuffer().getInt(0);

@@ -690,10 +690,13 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             default:
                 break;
         }
-
+        //
         this.updateTopicSubscribeInfoWhenSubscriptionChanged();
+        //
         this.mQClientFactory.checkClientInBroker();
+        //
         this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
+        //reBalance
         this.mQClientFactory.rebalanceImmediately();
     }
 

@@ -171,31 +171,34 @@ public class IndexService {
     }
 
     public QueryOffsetResult queryOffset(String topic, String key, int maxNum, long begin, long end) {
-        List<Long> phyOffsets = new ArrayList<Long>(maxNum);
-
+        List<Long> phyOffsets = new ArrayList<>(maxNum);
         long indexLastUpdateTimestamp = 0;
         long indexLastUpdatePhyoffset = 0;
+        //
         maxNum = Math.min(maxNum, this.defaultMessageStore.getMessageStoreConfig().getMaxMsgsNumBatch());
         try {
+            //申请读锁
             this.readWriteLock.readLock().lock();
             if (!this.indexFileList.isEmpty()) {
+                //遍历IndexFile文件列表
                 for (int i = this.indexFileList.size(); i > 0; i--) {
+                    //
                     IndexFile f = this.indexFileList.get(i - 1);
+                    //
                     boolean lastFile = i == this.indexFileList.size();
                     if (lastFile) {
                         indexLastUpdateTimestamp = f.getEndTimestamp();
                         indexLastUpdatePhyoffset = f.getEndPhyOffset();
                     }
-
+                    //
                     if (f.isTimeMatched(begin, end)) {
-
                         f.selectPhyOffset(phyOffsets, buildKey(topic, key), maxNum, begin, end, lastFile);
                     }
-
+                    //
                     if (f.getBeginTimestamp() < begin) {
                         break;
                     }
-
+                    //
                     if (phyOffsets.size() >= maxNum) {
                         break;
                     }

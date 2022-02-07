@@ -27,6 +27,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.util.List;
+
 //索引文件.作用:IndexFile的主要作用是作为CommitLog的索引文件, 可以快速根据给定的key查找到对应消息在CommitLog的物理位移.
 //这个类的设计思想.
 //IndexFile主要由一下三个部分组成: IndexHeader + HashSlot + IndexItem
@@ -42,7 +43,7 @@ public class IndexFile {
     private static final int indexSize = 20;
     //
     private static final int invalidIndex = 0;
-    //
+    //hash的槽位
     private final int hashSlotNum;
     //
     private final int indexNum;
@@ -226,18 +227,17 @@ public class IndexFile {
         }
         //
         int keyHash = indexKeyHashMethod(key);
-        //
+        //槽位
         int slotPos = keyHash % this.hashSlotNum;
-        //
+        //绝对槽位
         int absSlotPos = IndexHeader.INDEX_HEADER_SIZE + slotPos * hashSlotSize;
-
+        //
         FileLock fileLock = null;
         try {
             //if (lock) {
             // fileLock = this.fileChannel.lock(absSlotPos,
             // hashSlotSize, true);
             //}
-
             int slotValue = this.mappedByteBuffer.getInt(absSlotPos);
             // if (fileLock != null) {
             // fileLock.release();
@@ -252,36 +252,27 @@ public class IndexFile {
                     if (phyOffsets.size() >= maxNum) {
                         break;
                     }
-
                     int absIndexPos =
                             IndexHeader.INDEX_HEADER_SIZE + this.hashSlotNum * hashSlotSize
                                     + nextIndexToRead * indexSize;
-
                     int keyHashRead = this.mappedByteBuffer.getInt(absIndexPos);
                     long phyOffsetRead = this.mappedByteBuffer.getLong(absIndexPos + 4);
-
                     long timeDiff = this.mappedByteBuffer.getInt(absIndexPos + 4 + 8);
                     int prevIndexRead = this.mappedByteBuffer.getInt(absIndexPos + 4 + 8 + 4);
-
                     if (timeDiff < 0) {
                         break;
                     }
-
                     timeDiff *= 1000L;
-
                     long timeRead = this.indexHeader.getBeginTimestamp() + timeDiff;
                     boolean timeMatched = (timeRead >= begin) && (timeRead <= end);
-
                     if (keyHash == keyHashRead && timeMatched) {
                         phyOffsets.add(phyOffsetRead);
                     }
-
                     if (prevIndexRead <= invalidIndex
                             || prevIndexRead > this.indexHeader.getIndexCount()
                             || prevIndexRead == nextIndexToRead || timeRead < begin) {
                         break;
                     }
-
                     nextIndexToRead = prevIndexRead;
                 }
             }

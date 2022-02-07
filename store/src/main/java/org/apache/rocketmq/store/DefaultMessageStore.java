@@ -941,32 +941,24 @@ public class DefaultMessageStore implements MessageStore {
     @Override
     public QueryMessageResult queryMessage(String topic, String key, int maxNum, long begin, long end) {
         QueryMessageResult queryMessageResult = new QueryMessageResult();
-
         long lastQueryMsgTime = end;
-
         for (int i = 0; i < 3; i++) {
             //获取index的索引.offset.
             QueryOffsetResult queryOffsetResult = this.indexService.queryOffset(topic, key, maxNum, begin, lastQueryMsgTime);
             if (queryOffsetResult.getPhyOffsets().isEmpty()) {
                 break;
             }
-
             Collections.sort(queryOffsetResult.getPhyOffsets());
-
             queryMessageResult.setIndexLastUpdatePhyoffset(queryOffsetResult.getIndexLastUpdatePhyoffset());
             queryMessageResult.setIndexLastUpdateTimestamp(queryOffsetResult.getIndexLastUpdateTimestamp());
-
             for (int m = 0; m < queryOffsetResult.getPhyOffsets().size(); m++) {
                 long offset = queryOffsetResult.getPhyOffsets().get(m);
-
                 try {
-
                     boolean match = true;
                     MessageExt msg = this.lookMessageByOffset(offset);
                     if (0 == m) {
                         lastQueryMsgTime = msg.getStoreTimestamp();
                     }
-
 //                    String[] keyArray = msg.getKeys().split(MessageConst.KEY_SEPARATOR);
 //                    if (topic.equals(msg.getTopic())) {
 //                        for (String k : keyArray) {
